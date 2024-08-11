@@ -5,7 +5,8 @@ from src.routers.chat_router import chat_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1}/openapi.json"
+    openapi_url=f"{settings.API_V1}/openapi.json", # /api/v1/openapi.json
+    docs_url=f"{settings.API_V1}/docs", # /api/v1/docs
 )
 
 # Set all CORS enabled origins

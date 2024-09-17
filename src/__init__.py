@@ -5,6 +5,7 @@ from src.routers.chat_router import chat_router
 
 from src.models.models import SessionLocal, User, Bot
 from src.constants.prompts_dict import PROMPTS
+from src.schemas.bot_schema import BotRequestSchema
 from uuid import uuid4
 
 app = FastAPI(
@@ -46,18 +47,29 @@ async def create_user():
     sessoin.commit()
 
 @app.post('/bot/create')
-async def create_bot():
+async def create_bot(req: BotRequestSchema):
+
+    print(req.name)
+    print(req.description)
+    print(req.prompt)
+    print(req.price)
+    print(req.transactions)
+    print(req.chats)
+
     session = SessionLocal()
 
     bot = Bot(
         id = str(uuid4()),
-        name = "RESUME_WRITER",
-        description = "This bot will write a resume for you.",
-        prompt = PROMPTS['RESUME_WRITER'],
-        price = 0,
-        transactions = [],
-        chats = [],
+        name = req.name,
+        description = req.description,
+        prompt = req.prompt,
+        price = req.price,
+        transactions = req.transactions,
+        chats = req.chats
     )
 
     session.add(bot)
     session.commit()
+    session.refresh(bot)
+
+    return bot

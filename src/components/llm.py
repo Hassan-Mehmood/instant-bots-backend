@@ -101,14 +101,15 @@ class LLM:
     def store_message(self, content, session_id, sender):
         print('Inside store_message function params', session_id, sender)
 
-        if isinstance(session_id, str):
-            session_id = uuid.UUID(session_id)
+        try:
+            message = Message(
+                id = uuid.uuid4(),
+                chat_id = session_id,
+                sender = sender,
+                content = content
+            )
 
-        message = Message(
-            id = uuid.uuid4(),
-            chat_id = session_id,
-            sender = sender,
-            content = content
-        )
-
-        return message
+            return message
+        
+        except Exception as e:
+            print('Exception in store_message: ', e)

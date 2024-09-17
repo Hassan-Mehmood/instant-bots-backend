@@ -10,10 +10,10 @@ llm = LLM()
 async def root(req: RequestSchema):
     
     # Add a proper error handling and logging system
-    if not req.message or not req.role:
+    if not req.message or not req.role or not req.user_id or not req.bot_id:
         return ResponseSchema(response="Please provide message and role")
 
 
-    response = llm.chat(req.message, req.role)
+    response = llm.chat(req.message, req.role, req.user_id, req.bot_id)
 
-    return ResponseSchema(response=response.content)
+    return ResponseSchema(response=response)

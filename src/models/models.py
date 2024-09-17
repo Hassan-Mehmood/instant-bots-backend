@@ -20,7 +20,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password = Column(String)
     credits = Column(Integer)
-    transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")
+    chats: Mapped[list["Chat"]] = relationship("Chat", back_populates="user")
+    transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
@@ -32,7 +33,7 @@ class Transaction(Base):
     user: Mapped['User'] = relationship("User", back_populates="transactions")
     type = Column(Enum(TransactionType), nullable=False)
     amount = Column(Integer)
-    bot_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    bot_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('bots.id'))
     bot: Mapped['Bot'] = relationship("Bot", back_populates="transactions")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
@@ -45,10 +46,12 @@ class Bot(Base):
     description = Column(String)
     prompt = Column(String) 
     price = Column(Integer)
+    transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="bot")
+    chats: Mapped[list["Chat"]] = relationship("Chat", back_populates="bot")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
-class Chats(Base):
+class Chat(Base):
     __tablename__ = 'chats'
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, index=True)
@@ -56,6 +59,7 @@ class Chats(Base):
     user: Mapped['User'] = relationship("User", back_populates="chats")
     bot_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('bots.id'))
     bot: Mapped['Bot'] = relationship("Bot", back_populates="chats")
+    messages: Mapped[list["Message"]] = relationship("Message", back_populates="chat")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now) 
 
@@ -64,7 +68,7 @@ class Message(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, index=True)
     chat_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('chats.id'))
-    chat: Mapped['Chats'] = relationship("Chats", back_populates="messages")
+    chat: Mapped['Chat'] = relationship("Chat", back_populates="messages")
     content = Column(String) 
     sender = Column(Enum(MessageSender), nullable=False)
     created_at = Column(DateTime, server_default=func.now())

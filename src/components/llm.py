@@ -64,8 +64,8 @@ class LLM:
         print("Chat function called")
         self.user_id = user_id
         self.bot_id = bot_id
-        session_id = self.create_chat_if_not_exists(user_id, bot_id)
 
+        session_id = self.create_chat_if_not_exists(user_id, bot_id)
         self.config["configurable"]["session_id"] = session_id
         print('Config: ', self.config)
 

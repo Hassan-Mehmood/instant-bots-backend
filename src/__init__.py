@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.routers.chat_router import chat_router
+from src.routers.user_router import user_router
 
 from src.models.models import SessionLocal, User, Bot
-from src.constants.prompts_dict import PROMPTS
 from src.schemas.bot_schema import BotRequestSchema
 from uuid import uuid4
 
@@ -26,6 +26,7 @@ if settings.BACKEND_CORS_ORIGINS:
 
 # Include routers
 app.include_router(chat_router)
+app.include_router(user_router)
 
 @app.get("/")
 async def root():

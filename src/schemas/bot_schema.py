@@ -16,14 +16,14 @@ class BotSchema(BaseModel):
         from_attributes = True  # This enables SQLAlchemy to Pydantic conversion
 
 
-class CreateBotRequestSchema(BaseModel):
+class BotRequestSchema(BaseModel):
     name: str
     description: str
     prompt: str
     price: int
     type: str
 
-class CreateBotResponseSchema(BaseModel):
+class BotResponseSchema(BaseModel):
     bot: Optional[BotSchema]
     status: int
     message: str

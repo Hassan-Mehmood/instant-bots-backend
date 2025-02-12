@@ -29,18 +29,3 @@ app.include_router(bot_router)
 @app.get("/")
 async def root():
     return {"stauts": "ok"}
-
-# @app.post("/user/create")
-# async def create_user():
-#     sessoin = SessionLocal()
-
-#     user = User(
-#         id = str(uuid4()),
-#         username = "Hassan",
-#         email = "hassan@hassan.com",
-#         password = "123456",
-#         credits = 0,
-#     )
-
-#     sessoin.add(user)
-#     sessoin.commit()

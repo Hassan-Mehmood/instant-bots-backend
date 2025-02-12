@@ -2,21 +2,31 @@ from fastapi import APIRouter
 from src.models.models import Bot
 from src.db.database import SessionLocal
 
-from src.schemas.bot_schema import BotRequestSchema, BotResponseSchema, BotSchema
+from src.schemas.bot_schema import BotRequestSchema, BotResponseSchema, BotSchema, BotsResponseSchema
+from src.models.utils import BotVisibility
 
 
-
-from sqlalchemy.orm import joinedload
-from sqlalchemy import select
-
-bot_router = APIRouter(prefix='/bot')
+bot_router = APIRouter(prefix='/bots')
 database = SessionLocal()
 
-@bot_router.get("/all")
-async def get_chats():
-    result = database.query(Bot).all()
+@bot_router.get("/all/{user_id}", response_model=BotsResponseSchema)
+async def get_bots(user_id: str):
+    if not user_id:
+        return BotResponseSchema(bot=None, status=400, message="Please provide user id")
 
-    return result
+    bots = (
+        database.query(Bot)
+        .filter((Bot.visibility == "PUBLIC") | (Bot.user_id == user_id))
+        .all()
+    )
+
+    if not bots:
+        return BotsResponseSchema(bot=None, status=404, message="No bots found for the user")
+
+    all_bots = [BotSchema.model_validate(bot) for bot in bots]
+
+    return BotsResponseSchema(bot=all_bots, status=200, message="Bots fetched successfully")
+
 
 #? Create a new bot
 @bot_router.post('/create', response_model=BotResponseSchema)
@@ -27,8 +37,9 @@ async def create_bot(req: BotRequestSchema):
         prompt = req.prompt
         price = req.price
         type = req.type
+        visibility = req.visibility
 
-        if not name or not description or not prompt or price is None or not type:
+        if not name or not description or not prompt or price is None or not type or not visibility:
             return BotResponseSchema(bot=None, status=400, message="Please provide all required fields")
 
         new_bot = Bot(
@@ -37,6 +48,7 @@ async def create_bot(req: BotRequestSchema):
             prompt = prompt,
             price = price,
             type = type,
+            visibility = visibility
         )
 
         print("adding new bot")
@@ -50,6 +62,43 @@ async def create_bot(req: BotRequestSchema):
     except Exception as e:
         print("Exception in create_bot: ", str(e))
         return BotResponseSchema(bot=None, status=500, message="Error creating bot")
+
+
+@bot_router.post('/create/{user_id}', response_model=BotResponseSchema)
+async def create_bot(user_id: str, req: BotRequestSchema):
+    try:
+        name = req.name
+        description = req.description
+        prompt = req.prompt
+        price = req.price
+        type = req.type
+        visibility = req.visibility.upper()
+
+        if not name or not description or not prompt or price is None or not type or not visibility:
+            return BotResponseSchema(bot=None, status=400, message="Please provide all required fields")
+
+        new_bot = Bot(
+            name = name,
+            description = description,
+            prompt = prompt,
+            price = price,
+            type = type,
+            visibility = BotVisibility(visibility),
+            user_id = user_id
+        )
+
+        print("adding new bot:", new_bot)
+        database.add(new_bot)
+        print("commiting new bot")
+        database.commit()
+        database.refresh(new_bot)
+
+        return BotResponseSchema(bot=BotSchema.model_validate(new_bot) , status=201, message="Bot created successfully")
+
+    except Exception as e:
+        print("Exception in create_bot: ", str(e))
+        return BotResponseSchema(bot=None, status=500, message="Error creating bot", error=str(e))
+
 
 #? Get a single bot by id
 @bot_router.get('/{bot_id}', response_model=BotResponseSchema)

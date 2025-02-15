@@ -22,18 +22,18 @@ async def get_bots(user_id: str):
     if not user_id:
         return BotResponseSchema(bot=None, status=400, message="Please provide user id")
 
-    bots = (
+    data = (
         database.query(Bot)
         .filter((Bot.visibility == "PUBLIC") | (Bot.user_id == user_id))
         .all()
     )
 
-    if not bots:
+    if not data:
         return BotsResponseSchema(bot=None, status=404, message="No bots found for the user")
 
-    all_bots = [BotSchema.model_validate(bot) for bot in bots]
+    all_bots = [BotSchema.model_validate(bot) for bot in data]
 
-    return BotsResponseSchema(bot=all_bots, status=200, message="Bots fetched successfully")
+    return BotsResponseSchema(bots=all_bots, status=200, message="Bots fetched successfully")
 
 #? Create a new bot
 @bot_router.post('/create', response_model=BotResponseSchema)
@@ -198,7 +198,6 @@ async def add_favourite_bot(req: FavoriteBotRequestSchema):
         if bot.visibility == BotVisibility.PRIVATE and bot.user_id != user.id:
             raise HTTPException(status_code=403, detail="Bot is private and not owned by user")
 
-        print('6')
         if bot in user.favorite_bots:
             raise HTTPException(status_code=400, detail="Bot already added to favourites")
 
@@ -213,3 +212,62 @@ async def add_favourite_bot(req: FavoriteBotRequestSchema):
     except Exception as e:
         print("Exception in add_favourite_bot: ", str(e))
         raise HTTPException(status_code=500, detail="Error adding bot to favourites")
+    
+@bot_router.post('/remove-favourite', response_model=BotResponseSchema)
+async def remove_favourite_bot(req: FavoriteBotRequestSchema):
+    try:
+        user_id = req.user_id
+        bot_id = req.bot_id
+
+        if not check_uuid(user_id) or not check_uuid(bot_id):
+            raise HTTPException(status_code=400, detail="Please provide valid user id and bot id")
+
+        if not user_id or not bot_id:
+            raise HTTPException(status_code=400, detail="Please provide user id and bot id")
+
+        bot = database.query(Bot).filter_by(id=bot_id).first()
+
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+
+        user = database.query(User).filter_by(id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if bot not in user.favorite_bots:
+            raise HTTPException(status_code=400, detail="Bot not added to favourites")
+
+        user.favorite_bots.remove(bot)
+        database.commit()
+
+        return BotResponseSchema(bot=BotSchema.model_validate(bot), status=200, message="Bot removed from favourites successfully")
+
+    except HTTPException as http_execp:
+        raise http_execp
+
+    except Exception as e:
+        print("Exception in remove_favourite_bot: ", str(e))
+        raise HTTPException(status_code=500, detail="Error removing bot from favourites")
+    
+
+@bot_router.get('/favourite-bots/{user_id}', response_model=BotsResponseSchema)
+async def get_favourite_bots(user_id: str):
+    try:
+
+        if not user_id or not check_uuid(user_id):
+            raise HTTPException(status_code=400, detail="Please provide a valid user id")
+        
+        user = database.query(User).filter_by(id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return BotsResponseSchema(bots=[BotSchema.model_validate(bot) for bot in user.favorite_bots], status=200, message="Favourite bots fetched successfully")
+
+    except HTTPException as http_execp:
+        raise http_execp
+
+    except Exception as e:
+        print("Exception in get_favourite_bots: ", str(e))
+        raise HTTPException(status_code=500, detail="Error fetching favourite bots")

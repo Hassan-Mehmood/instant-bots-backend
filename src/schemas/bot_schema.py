@@ -26,7 +26,7 @@ class BotRequestSchema(BaseModel):
     visibility: str
 
 class BotsResponseSchema(BaseModel):
-    bot: Optional[List[BotSchema]]
+    bots: List[BotSchema] = []
     status: int
     message: str
 

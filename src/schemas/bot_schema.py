@@ -34,3 +34,7 @@ class BotResponseSchema(BaseModel):
     bot: Optional[BotSchema]
     status: int
     message: str
+
+class FavoriteBotRequestSchema(BaseModel):
+    user_id: str
+    bot_id: str

@@ -1,10 +1,18 @@
-from fastapi import APIRouter
-from src.models.models import Bot
+from fastapi import APIRouter, HTTPException
+
+from src.models.models import Bot, User
 from src.db.database import SessionLocal
 
-from src.schemas.bot_schema import BotRequestSchema, BotResponseSchema, BotSchema, BotsResponseSchema
-from src.models.utils import BotVisibility
+from src.schemas.bot_schema import (
+    BotRequestSchema, 
+    BotResponseSchema, 
+    BotSchema, 
+    BotsResponseSchema, 
+    FavoriteBotRequestSchema
+)
 
+from src.models.utils import BotVisibility
+from src.routers.utils import check_uuid
 
 bot_router = APIRouter(prefix='/bots')
 database = SessionLocal()
@@ -26,7 +34,6 @@ async def get_bots(user_id: str):
     all_bots = [BotSchema.model_validate(bot) for bot in bots]
 
     return BotsResponseSchema(bot=all_bots, status=200, message="Bots fetched successfully")
-
 
 #? Create a new bot
 @bot_router.post('/create', response_model=BotResponseSchema)
@@ -163,30 +170,46 @@ async def update_bot(bot_id: str, req: BotRequestSchema):
         print("Exception in update_bot: ", str(e))
         return BotResponseSchema(bot=None, status=500, message="Error updating bot")
 
-# @app.post('/bot/create')
-# async def create_bot(req: BotRequestSchema):
 
-#     print(req.name)
-#     print(req.description)
-#     print(req.prompt)
-#     print(req.price)
-#     print(req.transactions)
-#     print(req.chats)
+@bot_router.post('/add-favourite', response_model=BotResponseSchema)
+async def add_favourite_bot(req: FavoriteBotRequestSchema):
+    try:
+        user_id = req.user_id
+        bot_id = req.bot_id
 
-#     session = SessionLocal()
+        if not check_uuid(user_id) or not check_uuid(bot_id):
+            raise HTTPException(status_code=400, detail="Please provide valid user id and bot id")
 
-#     bot = Bot(
-#         id = str(uuid4()),
-#         name = req.name,
-#         description = req.description,
-#         prompt = req.prompt,
-#         price = req.price,
-#         transactions = req.transactions,
-#         chats = req.chats
-#     )
+        if not user_id or not bot_id:
+            raise HTTPException(status_code=400, detail="Please provide user id and bot id")
 
-#     session.add(bot)
-#     session.commit()
-#     session.refresh(bot)
+        bot = database.query(Bot).filter_by(id=bot_id).first()
 
-#     return bot
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+
+        user = database.query(User).filter_by(id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        #? Check if bot is owned by user and visibility is private
+        #? If bot is not owned by user and visibility is private, return error
+        if bot.visibility == BotVisibility.PRIVATE and bot.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Bot is private and not owned by user")
+
+        print('6')
+        if bot in user.favorite_bots:
+            raise HTTPException(status_code=400, detail="Bot already added to favourites")
+
+        user.favorite_bots.append(bot)
+        database.commit()
+
+        return BotResponseSchema(bot=BotSchema.model_validate(bot), status=200, message="Bot added to favourites successfully")
+
+    except HTTPException as http_execp:
+        raise http_execp
+
+    except Exception as e:
+        print("Exception in add_favourite_bot: ", str(e))
+        raise HTTPException(status_code=500, detail="Error adding bot to favourites")

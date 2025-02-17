@@ -102,13 +102,13 @@ async def create_bot(user_id: str, req: BotRequestSchema):
             name = name,
             description = description,
             prompt = prompt,
-            price = price,
+            price = price if visibility == "PUBLIC" else 0,
             type = type,
             visibility = BotVisibility(visibility),
             user_id = user_id
         )
 
-        print("adding new bot:", new_bot)
+        print("adding new bot:")
         database.add(new_bot)
         print("commiting new bot")
         database.commit()

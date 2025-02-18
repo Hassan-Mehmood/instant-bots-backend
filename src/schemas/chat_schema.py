@@ -9,5 +9,6 @@ class ChatRequestSchema(BaseModel):
     bot_id: str
 
 class ResponseSchema(BaseModel):
-    response: str
+    role: str
+    content: str
 

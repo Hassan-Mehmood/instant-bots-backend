@@ -1,4 +1,20 @@
 from pydantic import BaseModel
+from typing import Optional, List
+from src.models.models import Bot
+from uuid import UUID
+
+
+class BotSchema(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    prompt: str
+    price: int
+    type: str
+    visibility: str
+
+    class Config:
+        from_attributes = True  # This enables SQLAlchemy to Pydantic conversion
 
 
 class BotRequestSchema(BaseModel):
@@ -6,9 +22,19 @@ class BotRequestSchema(BaseModel):
     description: str
     prompt: str
     price: int
-    transactions: list
-    chats: list
+    type: str
+    visibility: str
 
-# class BotResponseSchema(BaseModel):
-#     bot: str
+class BotsResponseSchema(BaseModel):
+    bots: List[BotSchema] = []
+    status: int
+    message: str
 
+class BotResponseSchema(BaseModel):
+    bot: Optional[BotSchema]
+    status: int
+    message: str
+
+class FavoriteBotRequestSchema(BaseModel):
+    user_id: str
+    bot_id: str

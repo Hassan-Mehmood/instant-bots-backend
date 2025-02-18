@@ -1,12 +1,14 @@
 from pydantic import BaseModel
 
 
-class RequestSchema(BaseModel):
+class ChatRequestSchema(BaseModel):
     message: str
-    role: str
+    model:str
+    chat_history: list = []
     user_id: str
     bot_id: str
 
 class ResponseSchema(BaseModel):
-    response: str
+    role: str
+    content: str
 

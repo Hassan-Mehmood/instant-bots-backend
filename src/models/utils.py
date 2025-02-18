@@ -8,3 +8,7 @@ class TransactionType(PyEnum):
 class MessageSender(PyEnum):
     USER = "USER"
     BOT = "BOT"
+
+class BotVisibility(str, PyEnum):
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"

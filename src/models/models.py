@@ -1,5 +1,4 @@
 from sqlalchemy import (
-    create_engine,
     Column,
     Integer,
     String,
@@ -11,19 +10,11 @@ from sqlalchemy import (
     Table,
 )
 from datetime import datetime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship
-import os
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 
-from src.models.utils import TransactionType, MessageSender, BotVisibility
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
+from src.models.utils import TransactionType, MessageSender
+from src.db.database import Base
 
 #! ------------------- Secondary Tables ------------------------------
 
@@ -75,6 +66,8 @@ class Bot(Base):
     prompt = Column(String)
     avatar = Column(String)
 
+    visibility = Column(String, nullable=False, default="PRIVATE")
+
     user_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
@@ -88,7 +81,9 @@ class Bot(Base):
     transactions: Mapped[list["Transaction"]] = relationship(
         "Transaction", back_populates="bot"
     )
-    chats: Mapped[list["Chat"]] = relationship("Chat", back_populates="bot")
+    chats: Mapped[list["Chat"]] = relationship(
+        "Chat", back_populates="bot", cascade="all, delete-orphan"
+    )
 
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)

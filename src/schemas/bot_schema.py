@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
-from src.models.models import Bot
+from typing import List
 from uuid import UUID
 
 
@@ -9,8 +8,7 @@ class BotSchema(BaseModel):
     name: str
     description: str
     prompt: str
-    price: int
-    type: str
+    avatar: str
     visibility: str
 
     class Config:
@@ -22,16 +20,18 @@ class BotRequestSchema(BaseModel):
     description: str
     prompt: str
     avatar: str
+    visibility: str
+
+
+class UpdateBotRequestSchema(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    prompt: str | None = None
+    avatar: str | None = None
 
 
 class BotsResponseSchema(BaseModel):
     bots: List[BotSchema] = []
-    status: int
-    message: str
-
-
-class BotResponseSchema(BaseModel):
-    bot: Optional[BotSchema]
     status: int
     message: str
 

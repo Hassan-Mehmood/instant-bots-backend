@@ -4,24 +4,27 @@ from src.models.models import Bot, User
 from src.db.database import SessionLocal
 
 from src.schemas.bot_schema import (
-    BotRequestSchema, 
-    BotResponseSchema, 
-    BotSchema, 
-    BotsResponseSchema, 
-    FavoriteBotRequestSchema
+    BotRequestSchema,
+    BotResponseSchema,
+    BotSchema,
+    BotsResponseSchema,
+    FavoriteBotRequestSchema,
 )
 
 from src.models.utils import BotVisibility
 from src.routers.utils import check_uuid
 
-bot_router = APIRouter(prefix='/bots')
+bot_router = APIRouter(prefix="/bots", tags=["bots"])
 database = SessionLocal()
+
 
 @bot_router.get("/all/{user_id}", response_model=BotsResponseSchema)
 async def get_bots(user_id: str):
     try:
         if not user_id or not check_uuid(user_id):
-            raise HTTPException(status_code=400, detail="Please provide a valid user id")
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
+            )
 
         data = (
             database.query(Bot)
@@ -30,18 +33,23 @@ async def get_bots(user_id: str):
         )
 
         if not data:
-            return BotsResponseSchema(bots=None, status=404, message="No bots found for the user")
+            return BotsResponseSchema(
+                bots=None, status=404, message="No bots found for the user"
+            )
 
         all_bots = [BotSchema.model_validate(bot) for bot in data]
 
-        return BotsResponseSchema(bots=all_bots, status=200, message="Bots fetched successfully")
-    
+        return BotsResponseSchema(
+            bots=all_bots, status=200, message="Bots fetched successfully"
+        )
+
     except HTTPException as http_execp:
         raise http_execp
 
     except Exception as e:
         print("Exception in get_bots: ", str(e))
         return BotResponseSchema(bot=None, status=500, message="Error fetching bots")
+
 
 # #? Create a new bot
 # @bot_router.post('/create', response_model=BotResponseSchema)
@@ -82,30 +90,30 @@ async def get_bots(user_id: str):
 #         return BotResponseSchema(bot=None, status=500, message="Error creating bot")
 
 
-@bot_router.post('/create/{user_id}', response_model=BotResponseSchema)
+@bot_router.post("/create/{user_id}", response_model=BotResponseSchema)
 async def create_bot(user_id: str, req: BotRequestSchema):
     try:
         name = req.name
         description = req.description
         prompt = req.prompt
-        price = req.price
-        type = req.type
-        visibility = req.visibility.upper()
+        avatar = req.avatar
 
-        if not name or not description or not prompt or price is None or not type or not visibility:
-            raise HTTPException(status_code=400, detail="Please provide all required fields")
-        
+        if not name or not description or not prompt or not avatar:
+            raise HTTPException(
+                status_code=400, detail="Please provide all required fields"
+            )
+
         if not check_uuid(user_id):
-            raise HTTPException(status_code=400, detail="Please provide a valid user id")
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
+            )
 
         new_bot = Bot(
-            name = name,
-            description = description,
-            prompt = prompt,
-            price = price if visibility == "PUBLIC" else 0,
-            type = type,
-            visibility = BotVisibility(visibility),
-            user_id = user_id
+            name=name,
+            description=description,
+            prompt=prompt,
+            avatar=avatar,
+            user_id=user_id,
         )
 
         print("adding new bot:")
@@ -114,18 +122,24 @@ async def create_bot(user_id: str, req: BotRequestSchema):
         database.commit()
         database.refresh(new_bot)
 
-        return BotResponseSchema(bot=BotSchema.model_validate(new_bot) , status=201, message="Bot created successfully")
+        return BotResponseSchema(
+            bot=BotSchema.model_validate(new_bot),
+            status=201,
+            message="Bot created successfully",
+        )
 
     except HTTPException as http_execp:
         raise http_execp
 
     except Exception as e:
         print("Exception in create_bot: ", str(e))
-        return BotResponseSchema(bot=None, status=500, message="Error creating bot", error=str(e))
+        return BotResponseSchema(
+            bot=None, status=500, message="Error creating bot", error=str(e)
+        )
 
 
-#? Get a single bot by id
-@bot_router.get('/{bot_id}', response_model=BotResponseSchema)
+# ? Get a single bot by id
+@bot_router.get("/{bot_id}", response_model=BotResponseSchema)
 async def get_bot(bot_id: str):
     try:
         if not bot_id or not check_uuid(bot_id):
@@ -136,8 +150,12 @@ async def get_bot(bot_id: str):
         if not result:
             return BotResponseSchema(bot=None, status=404, message="Bot not found")
 
-        return BotResponseSchema(bot=BotSchema.model_validate(result), status=200, message="Bot fetched successfully")
-    
+        return BotResponseSchema(
+            bot=BotSchema.model_validate(result),
+            status=200,
+            message="Bot fetched successfully",
+        )
+
     except HTTPException as http_execp:
         raise http_execp
 
@@ -145,8 +163,9 @@ async def get_bot(bot_id: str):
         print("Exception in get_bot: ", str(e))
         return BotResponseSchema(bot=None, status=500, message="Error fetching bot")
 
-#? Delete a single bot by id
-@bot_router.delete('/{bot_id}', response_model=BotResponseSchema)
+
+# ? Delete a single bot by id
+@bot_router.delete("/{bot_id}", response_model=BotResponseSchema)
 async def delete_bot(bot_id: str):
     try:
         if not bot_id or not check_uuid(bot_id):
@@ -160,8 +179,12 @@ async def delete_bot(bot_id: str):
         database.delete(result)
         database.commit()
 
-        return BotResponseSchema(bot=BotSchema.model_validate(result), status=200, message="Bot deleted successfully")
-    
+        return BotResponseSchema(
+            bot=BotSchema.model_validate(result),
+            status=200,
+            message="Bot deleted successfully",
+        )
+
     except HTTPException as http_execp:
         raise http_execp
 
@@ -169,8 +192,9 @@ async def delete_bot(bot_id: str):
         print("Exception in delete_bot: ", str(e))
         return BotResponseSchema(bot=None, status=500, message="Error deleting bot")
 
-#? Update a single bot by id
-@bot_router.put('/{bot_id}', response_model=BotResponseSchema)
+
+# ? Update a single bot by id
+@bot_router.put("/{bot_id}", response_model=BotResponseSchema)
 async def update_bot(bot_id: str, req: BotRequestSchema):
     try:
         if not bot_id or not check_uuid(bot_id):
@@ -190,23 +214,31 @@ async def update_bot(bot_id: str, req: BotRequestSchema):
         database.commit()
         database.refresh(result)
 
-        return BotResponseSchema(bot=BotSchema.model_validate(result), status=200, message="Bot updated successfully")
+        return BotResponseSchema(
+            bot=BotSchema.model_validate(result),
+            status=200,
+            message="Bot updated successfully",
+        )
     except Exception as e:
         print("Exception in update_bot: ", str(e))
         return BotResponseSchema(bot=None, status=500, message="Error updating bot")
 
 
-@bot_router.post('/add-favourite', response_model=BotResponseSchema)
+@bot_router.post("/add-favourite", response_model=BotResponseSchema)
 async def add_favourite_bot(req: FavoriteBotRequestSchema):
     try:
         user_id = req.user_id
         bot_id = req.bot_id
 
         if not check_uuid(user_id) or not check_uuid(bot_id):
-            raise HTTPException(status_code=400, detail="Please provide valid user id and bot id")
+            raise HTTPException(
+                status_code=400, detail="Please provide valid user id and bot id"
+            )
 
         if not user_id or not bot_id:
-            raise HTTPException(status_code=400, detail="Please provide user id and bot id")
+            raise HTTPException(
+                status_code=400, detail="Please provide user id and bot id"
+            )
 
         bot = database.query(Bot).filter_by(id=bot_id).first()
 
@@ -218,18 +250,26 @@ async def add_favourite_bot(req: FavoriteBotRequestSchema):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        #? Check if bot is owned by user and visibility is private
-        #? If bot is not owned by user and visibility is private, return error
+        # ? Check if bot is owned by user and visibility is private
+        # ? If bot is not owned by user and visibility is private, return error
         if bot.visibility == BotVisibility.PRIVATE and bot.user_id != user.id:
-            raise HTTPException(status_code=403, detail="Bot is private and not owned by user")
+            raise HTTPException(
+                status_code=403, detail="Bot is private and not owned by user"
+            )
 
         if bot in user.favorite_bots:
-            raise HTTPException(status_code=400, detail="Bot already added to favourites")
+            raise HTTPException(
+                status_code=400, detail="Bot already added to favourites"
+            )
 
         user.favorite_bots.append(bot)
         database.commit()
 
-        return BotResponseSchema(bot=BotSchema.model_validate(bot), status=200, message="Bot added to favourites successfully")
+        return BotResponseSchema(
+            bot=BotSchema.model_validate(bot),
+            status=200,
+            message="Bot added to favourites successfully",
+        )
 
     except HTTPException as http_execp:
         raise http_execp
@@ -237,18 +277,23 @@ async def add_favourite_bot(req: FavoriteBotRequestSchema):
     except Exception as e:
         print("Exception in add_favourite_bot: ", str(e))
         raise HTTPException(status_code=500, detail="Error adding bot to favourites")
-    
-@bot_router.post('/remove-favourite', response_model=BotResponseSchema)
+
+
+@bot_router.post("/remove-favourite", response_model=BotResponseSchema)
 async def remove_favourite_bot(req: FavoriteBotRequestSchema):
     try:
         user_id = req.user_id
         bot_id = req.bot_id
 
         if not check_uuid(user_id) or not check_uuid(bot_id):
-            raise HTTPException(status_code=400, detail="Please provide valid user id and bot id")
+            raise HTTPException(
+                status_code=400, detail="Please provide valid user id and bot id"
+            )
 
         if not user_id or not bot_id:
-            raise HTTPException(status_code=400, detail="Please provide user id and bot id")
+            raise HTTPException(
+                status_code=400, detail="Please provide user id and bot id"
+            )
 
         bot = database.query(Bot).filter_by(id=bot_id).first()
 
@@ -266,29 +311,40 @@ async def remove_favourite_bot(req: FavoriteBotRequestSchema):
         user.favorite_bots.remove(bot)
         database.commit()
 
-        return BotResponseSchema(bot=BotSchema.model_validate(bot), status=200, message="Bot removed from favourites successfully")
+        return BotResponseSchema(
+            bot=BotSchema.model_validate(bot),
+            status=200,
+            message="Bot removed from favourites successfully",
+        )
 
     except HTTPException as http_execp:
         raise http_execp
 
     except Exception as e:
         print("Exception in remove_favourite_bot: ", str(e))
-        raise HTTPException(status_code=500, detail="Error removing bot from favourites")
-    
+        raise HTTPException(
+            status_code=500, detail="Error removing bot from favourites"
+        )
 
-@bot_router.get('/favourite-bots/{user_id}', response_model=BotsResponseSchema)
+
+@bot_router.get("/favourite-bots/{user_id}", response_model=BotsResponseSchema)
 async def get_favourite_bots(user_id: str):
     try:
-
         if not user_id or not check_uuid(user_id):
-            raise HTTPException(status_code=400, detail="Please provide a valid user id")
-        
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
+            )
+
         user = database.query(User).filter_by(id=user_id).first()
 
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        return BotsResponseSchema(bots=[BotSchema.model_validate(bot) for bot in user.favorite_bots], status=200, message="Favourite bots fetched successfully")
+        return BotsResponseSchema(
+            bots=[BotSchema.model_validate(bot) for bot in user.favorite_bots],
+            status=200,
+            message="Favourite bots fetched successfully",
+        )
 
     except HTTPException as http_execp:
         raise http_execp

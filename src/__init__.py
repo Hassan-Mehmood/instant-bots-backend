@@ -7,8 +7,8 @@ from src.routers.bot_router import bot_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1}/openapi.json", # /api/v1/openapi.json
-    docs_url=f"{settings.API_V1}/docs", # /api/v1/docs
+    openapi_url="/openapi.json",  # /api/v1/openapi.json
+    docs_url="/docs",  # /api/v1/docs
 )
 
 # Set all CORS enabled origins
@@ -22,10 +22,11 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 # Include routers
-app.include_router(chat_router)
-app.include_router(user_router)
-app.include_router(bot_router)
+app.include_router(chat_router, prefix=settings.API_V1)
+app.include_router(user_router, prefix=settings.API_V1)
+app.include_router(bot_router, prefix=settings.API_V1)
+
 
 @app.get("/")
 async def root():
-    return {"stauts": "ok"}
+    return {"status": "ok"}

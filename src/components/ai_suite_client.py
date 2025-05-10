@@ -12,6 +12,7 @@ from src.models.utils import MessageSender
 
 load_dotenv()
 
+
 class AiSuiteClient:
     def __init__(self):
         self.load_api_keys()
@@ -22,19 +23,31 @@ class AiSuiteClient:
         os.getenv("ANTHROPIC_API_KEY")
         os.getenv("GROQ_API_KEY")
 
-    def chat(self, message: str, user_id: str, bot_id: str, model: str, chat_history: list, background_tasks: BackgroundTasks) -> dict:
+    def chat(
+        self,
+        message: str,
+        user_id: str,
+        bot_id: str,
+        model: str,
+        chat_history: list,
+        background_tasks: BackgroundTasks,
+    ) -> dict:
         if not message or not model:
-            raise HTTPException(status_code=400, detail="Please provide model and message")
-        
+            raise HTTPException(
+                status_code=400, detail="Please provide model and message"
+            )
+
         if not check_uuid(user_id) or not check_uuid(bot_id):
-            raise HTTPException(status_code=400, detail="Please provide valid user id and bot id")
+            raise HTTPException(
+                status_code=400, detail="Please provide valid user id and bot id"
+            )
 
         with SessionLocal() as db:
             bot = db.query(Bot).filter_by(id=bot_id, user_id=user_id).first()
-        
+
             if not bot:
                 raise HTTPException(status_code=404, detail="Bot not found")
-        
+
             prompt = bot.prompt
 
         updated_history = chat_history.copy()
@@ -42,47 +55,54 @@ class AiSuiteClient:
         updated_history.append({"role": "user", "content": message})
 
         try:
-            response = self.client.chat.completions.create(model=model, messages=updated_history)
+            response = self.client.chat.completions.create(
+                model=model, messages=updated_history
+            )
 
         except Exception as e:
             print("Error generating chat completion: ", str(e))
-            raise HTTPException(status_code=500, detail="Error generating chat response")
+            raise HTTPException(
+                status_code=500, detail="Error generating chat response"
+            )
 
         background_tasks.add_task(self.store_message, bot_id, user_id, message, "USER")
-        background_tasks.add_task(self.store_message, bot_id, user_id, response.choices[0].message.content, "BOT")
+        background_tasks.add_task(
+            self.store_message,
+            bot_id,
+            user_id,
+            response.choices[0].message.content,
+            "BOT",
+        )
 
-        return {
-            "role": "assistant",
-            "content": response.choices[0].message.content
-        }
+        return {"role": "assistant", "content": response.choices[0].message.content}
 
-    def store_message(self, bot_id: str, user_id: str, message: str, sender: str) -> None:
+    def store_message(
+        self, bot_id: str, user_id: str, message: str, sender: str
+    ) -> None:
         db: Session = SessionLocal()
-        
+
         try:
             chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
-            
+
             if not chat:
                 print("Chat not found")
                 chat = Chat(bot_id=bot_id, user_id=user_id)
-        
+
                 db.add(chat)
                 db.commit()
                 db.refresh(chat)
-        
+
             new_message = Message(
-                chat_id=chat.id,
-                content=message,
-                sender=MessageSender(sender)
+                chat_id=chat.id, content=message, sender=MessageSender(sender)
             )
-        
+
             db.add(new_message)
             db.commit()
             print("Stored message")
-        
+
         except Exception as e:
             db.rollback()
             print("Error storing message", str(e))
-            
+
         finally:
             db.close()

@@ -21,19 +21,20 @@ class BotRequestSchema(BaseModel):
     name: str
     description: str
     prompt: str
-    price: int
-    type: str
-    visibility: str
+    avatar: str
+
 
 class BotsResponseSchema(BaseModel):
     bots: List[BotSchema] = []
     status: int
     message: str
 
+
 class BotResponseSchema(BaseModel):
     bot: Optional[BotSchema]
     status: int
     message: str
+
 
 class FavoriteBotRequestSchema(BaseModel):
     user_id: str

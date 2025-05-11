@@ -33,9 +33,12 @@ class User(Base):
     id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4
     )
+    clerk_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+
     username = Column(String, index=True)
     email = Column(String, unique=True, index=True)
-    password = Column(String)
+    img_url = Column(String)
+
     credits = Column(Integer)
 
     # One-to-Many Relationship: A user can have multiple private bots

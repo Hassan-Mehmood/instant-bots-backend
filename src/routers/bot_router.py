@@ -6,8 +6,6 @@ from src.models.models import Bot, User
 
 from src.schemas.bot_schema import (
     BotRequestSchema,
-    BotSchema,
-    BotsResponseSchema,
     FavoriteBotRequestSchema,
     UpdateBotRequestSchema,
 )
@@ -38,8 +36,8 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
         )
 
         if not data:
-            return BotsResponseSchema(
-                bots=None, status=404, message="No bots found for the user"
+            return JSONResponse(
+                status_code=404, content={"message": "No bots found for the user"}
             )
 
         return JSONResponse(

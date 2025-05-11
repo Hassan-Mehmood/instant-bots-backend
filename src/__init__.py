@@ -4,11 +4,12 @@ from src.core.config import settings
 from src.routers.chat_router import chat_router
 from src.routers.user_router import user_router
 from src.routers.bot_router import bot_router
+from src.webhooks.clerk_webhooks import router as clerk_webhook_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1}/openapi.json", # /api/v1/openapi.json
-    docs_url=f"{settings.API_V1}/docs", # /api/v1/docs
+    openapi_url="/openapi.json",  # /api/v1/openapi.json
+    docs_url="/docs",  # /api/v1/docs
 )
 
 # Set all CORS enabled origins
@@ -25,7 +26,9 @@ if settings.BACKEND_CORS_ORIGINS:
 app.include_router(chat_router)
 app.include_router(user_router)
 app.include_router(bot_router)
+app.include_router(clerk_webhook_router)
+
 
 @app.get("/")
 async def root():
-    return {"stauts": "ok"}
+    return {"status": "ok"}

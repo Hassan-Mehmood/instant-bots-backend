@@ -7,15 +7,27 @@ from sqlalchemy import select
 
 from src.routers.utils import check_uuid
 
-user_router = APIRouter(prefix='/user')
+user_router = APIRouter(prefix="/user", tags=["user"])
 
 database = SessionLocal()
+
+
 @user_router.get("/{user_id}/chats")
 async def get_chats(user_id: str):
-    result = database.execute(select(Chat)
-    .options(joinedload(Chat.messages))
-    .options(joinedload(Chat.bot))
-    .filter_by(user_id=user_id)).unique().scalars().all() 
+    if not user_id or not check_uuid(user_id):
+        raise HTTPException(status_code=400, detail="Please provide a valid user id")
+
+    result = (
+        database.execute(
+            select(Chat)
+            .options(joinedload(Chat.messages))
+            .options(joinedload(Chat.bot))
+            .filter_by(user_id=user_id)
+        )
+        .unique()
+        .scalars()
+        .all()
+    )
 
     return result
 
@@ -24,8 +36,10 @@ async def get_chats(user_id: str):
 async def user_credits(user_id):
     try:
         if not user_id or not check_uuid(user_id):
-            raise HTTPException(status_code=400, detail="Please provide a valid user id")
-        
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
+            )
+
         user = database.query(User).filter_by(id=user_id).first()
 
         if not user:
@@ -41,7 +55,4 @@ async def user_credits(user_id):
 
     except Exception as e:
         print("Exception in user_credits: ", str(e))
-        return {
-            "status": 500,
-            "credits": None
-        }
+        return {"status": 500, "credits": None}

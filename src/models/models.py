@@ -21,7 +21,7 @@ from src.db.database import Base
 users_bots = Table(
     "users_bots",
     Base.metadata,
-    Column("user_id", UUID, ForeignKey("users.id"), primary_key=True),
+    Column("user_id", String, ForeignKey("users.clerk_id"), primary_key=True),
     Column("bot_id", UUID, ForeignKey("bots.id"), primary_key=True),
 )
 
@@ -71,8 +71,8 @@ class Bot(Base):
 
     visibility = Column(String, nullable=False, default="PRIVATE")
 
-    user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.clerk_id"), nullable=True
     )
     user: Mapped["User"] = relationship(
         "User", back_populates="bots", foreign_keys=[user_id]

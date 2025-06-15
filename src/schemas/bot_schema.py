@@ -19,7 +19,6 @@ class BotRequestSchema(BaseModel):
     name: str
     description: str
     prompt: str
-    avatar: str
     visibility: str
 
 

@@ -24,11 +24,6 @@ database = None
 @bot_router.get("/all/{user_id}")
 async def get_bots(user_id: str, db: Session = Depends(get_db)):
     try:
-        if not user_id or not check_uuid(user_id):
-            raise HTTPException(
-                status_code=400, detail="Please provide a valid user id"
-            )
-
         data = (
             db.query(Bot)
             .filter((Bot.visibility == "PUBLIC") | (Bot.user_id == user_id))
@@ -44,7 +39,7 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
             status_code=200,
             content={
                 "message": "Bots fetched successfully",
-                "data": [
+                "bots": [
                     {
                         "id": str(bot.id),
                         "name": bot.name,
@@ -116,12 +111,7 @@ async def create_bot(
         name = req.name
         description = req.description
         prompt = req.prompt
-        avatar = req.avatar
-
-        if not name or not description or not prompt or not avatar:
-            raise HTTPException(
-                status_code=400, detail="Please provide all required fields"
-            )
+        visibility = req.visibility
 
         # if not check_uuid(user_id):
         #     raise HTTPException(
@@ -132,8 +122,8 @@ async def create_bot(
             name=name,
             description=description,
             prompt=prompt,
-            avatar=avatar,
             user_id=user_id,
+            visibility=visibility,
         )
 
         print("adding new bot:")

@@ -37,9 +37,9 @@ class AiSuiteClient:
                 status_code=400, detail="Please provide model and message"
             )
 
-        if not check_uuid(user_id) or not check_uuid(bot_id):
+        if not check_uuid(bot_id):
             raise HTTPException(
-                status_code=400, detail="Please provide valid user id and bot id"
+                status_code=400, detail="Please provide valid and bot id"
             )
 
         with SessionLocal() as db:
@@ -65,28 +65,52 @@ class AiSuiteClient:
                 status_code=500, detail="Error generating chat response"
             )
 
-        background_tasks.add_task(self.store_message, bot_id, user_id, message, "USER")
-        background_tasks.add_task(
-            self.store_message,
-            bot_id,
-            user_id,
-            response.choices[0].message.content,
-            "BOT",
+        # background_tasks.add_task(
+        #     self.store_message, bot_id, user_id, message, "USER", model
+        # )
+        # background_tasks.add_task(
+        #     self.store_message,
+        #     bot_id,
+        #     user_id,
+        #     response.choices[0].message.content,
+        #     "BOT",
+        #     model,
+        # )
+
+        self.store_message(bot_id, user_id, message, "USER", model)
+        self.store_message(
+            bot_id, user_id, response.choices[0].message.content, "BOT", model
         )
+        print("Stored messages")
 
         return {"role": "assistant", "content": response.choices[0].message.content}
 
     def store_message(
-        self, bot_id: str, user_id: str, message: str, sender: str
+        self, bot_id: str, user_id: str, message: str, sender: str, model: str
     ) -> None:
         db: Session = SessionLocal()
 
         try:
             chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
 
-            if not chat:
+            if not chat and sender == "USER":
                 print("Chat not found")
-                chat = Chat(bot_id=bot_id, user_id=user_id)
+
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Choose a approriate name for the chat",
+                        },
+                        {"role": "user", "content": message},
+                    ],
+                )
+
+                name = response.choices[0].message.content
+
+                chat = Chat(bot_id=bot_id, user_id=user_id, name=name)
+                print("Creating new chat with name:", name)
 
                 db.add(chat)
                 db.commit()

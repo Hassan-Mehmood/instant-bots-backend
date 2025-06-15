@@ -114,7 +114,10 @@ class Chat(Base):
     id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4
     )
-    user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.clerk_id"))
+    name: Mapped[str] = mapped_column(String, nullable=True)
+
     user: Mapped["User"] = relationship("User", back_populates="chats")
     bot_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bots.id"))
     bot: Mapped["Bot"] = relationship("Bot", back_populates="chats")
@@ -129,6 +132,7 @@ class Message(Base):
     id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4
     )
+
     chat_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("chats.id"))
     chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")
     content = Column(String)

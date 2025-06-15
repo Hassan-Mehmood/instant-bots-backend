@@ -13,24 +13,58 @@ user_router = APIRouter(prefix="/users", tags=["users"])
 database = SessionLocal()
 
 
-@user_router.get("/{user_id}/chats")
+@user_router.get("/chats/{user_id}")
 async def get_chats(user_id: str):
-    if not user_id or not check_uuid(user_id):
-        raise HTTPException(status_code=400, detail="Please provide a valid user id")
+    if not user_id or user_id == "undefined":
+        return
 
-    result = (
-        database.execute(
-            select(Chat)
-            .options(joinedload(Chat.messages))
-            .options(joinedload(Chat.bot))
-            .filter_by(user_id=user_id)
+    # result = (
+    #     database.execute(
+    #         select(Chat)
+    #         .options(joinedload(Chat.messages))
+    #         .options(joinedload(Chat.bot))
+    #         .filter_by(user_id=user_id)
+    #     )
+    #     .unique()
+    #     .scalars()
+    #     .all()
+    # )
+
+    result = database.query(Chat).filter_by(user_id=user_id)
+
+    if not result:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": 200,
+                "message": "No chats found for this user",
+                "chats": [],
+            },
         )
-        .unique()
-        .scalars()
-        .all()
-    )
 
-    return result
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": 200,
+            "message": "Chats retrieved successfully",
+            "chats": [
+                {
+                    "id": str(chat.id),
+                    "name": chat.name,
+                    "bot": {
+                        "id": str(chat.bot.id),
+                        "name": chat.bot.name,
+                        "description": chat.bot.description,
+                        # "avatar": chat.bot.avatar,
+                    },
+                    "user_id": str(chat.user_id),
+                    "created_at": chat.created_at.isoformat(),
+                    "updated_at": chat.updated_at.isoformat(),
+                }
+                for chat in result
+            ],
+        },
+    )
 
 
 @user_router.get("/profile/{user_id}")

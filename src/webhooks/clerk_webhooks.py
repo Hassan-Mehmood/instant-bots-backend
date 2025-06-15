@@ -6,7 +6,7 @@ import os
 import json
 from svix.webhooks import Webhook, WebhookVerificationError
 
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
 webhook = Webhook(os.getenv("CLERK_WEBHOOK_SECRET"))
 

@@ -123,10 +123,10 @@ async def create_bot(
                 status_code=400, detail="Please provide all required fields"
             )
 
-        if not check_uuid(user_id):
-            raise HTTPException(
-                status_code=400, detail="Please provide a valid user id"
-            )
+        # if not check_uuid(user_id):
+        #     raise HTTPException(
+        #         status_code=400, detail="Please provide a valid user id"
+        #     )
 
         new_bot = Bot(
             name=name,

@@ -43,7 +43,14 @@ class AiSuiteClient:
             )
 
         with SessionLocal() as db:
-            bot = db.query(Bot).filter_by(id=bot_id, user_id=user_id).first()
+            bot = (
+                db.query(Bot)
+                .filter(
+                    Bot.id == bot_id,
+                    ((Bot.visibility == "PUBLIC") | (Bot.user_id == user_id)),
+                )
+                .first()
+            )
 
             if not bot:
                 raise HTTPException(status_code=404, detail="Bot not found")
@@ -101,7 +108,7 @@ class AiSuiteClient:
                     messages=[
                         {
                             "role": "system",
-                            "content": "Choose a approriate name for the chat",
+                            "content": "Choose an appropraite name for the chat based on the user's message. The name should be concise and relevant to the conversation.",
                         },
                         {"role": "user", "content": message},
                     ],

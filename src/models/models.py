@@ -39,7 +39,10 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     img_url = Column(String)
 
-    credits = Column(Integer)
+    credits = Column(
+        Integer,
+        default=0,
+    )
 
     # One-to-Many Relationship: A user can have multiple private bots
     bots: Mapped[list["Bot"]] = relationship(

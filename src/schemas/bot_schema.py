@@ -36,5 +36,5 @@ class BotsResponseSchema(BaseModel):
 
 
 class FavoriteBotRequestSchema(BaseModel):
-    user_id: str
-    bot_id: str
+    botId: str
+    userId: str

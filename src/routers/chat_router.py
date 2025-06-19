@@ -32,22 +32,50 @@ async def root(req: ChatRequestSchema, background_tasks: BackgroundTasks):
 
     return ResponseSchema(role=response["role"], content=response["content"])
 
+
 @chat_router.get("/{user_id}/{bot_id}")
 async def get_chat_history(user_id: str, bot_id: str):
     """
     Retrieve chat history for a specific bot and user.
     """
-    db: Session = SessionLocal()
+    try:
+        db: Session = SessionLocal()
 
-    
-    chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
+        chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
 
-    if not chat:
-        return {"chat_history": []}
-    
+        if not chat:
+            return {"chat_history": []}
 
-    chat_history = []
-    for message in chat.messages:
-        chat_history.append({"id": message.id, "role": message.sender, "content": message.content})
+        chat_history = []
+        for message in chat.messages:
+            chat_history.append(
+                {"id": message.id, "role": message.sender, "content": message.content}
+            )
 
-    return {"chat_history": chat_history}
+        return {"chat_history": chat_history}
+    except Exception as e:
+        print(f"Error retrieving chat history: {e}")
+        return {"error": "An error occurred while retrieving chat history."}
+
+
+# delete
+@chat_router.delete("/{user_id}/{bot_id}")
+async def delete_chat_history(user_id: str, bot_id: str):
+    """
+    Delete chat history for a specific bot and user.
+    """
+    try:
+        db: Session = SessionLocal()
+
+        chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
+
+        if not chat:
+            return {"message": "No chat history found for this user and bot."}
+
+        db.delete(chat)
+        db.commit()
+
+        return {"message": "Chat history deleted successfully."}
+    except Exception as e:
+        print(f"Error deleting chat history: {e}")
+        return {"error": "An error occurred while deleting chat history."}

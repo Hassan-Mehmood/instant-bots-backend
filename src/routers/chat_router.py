@@ -19,6 +19,8 @@ async def root(req: ChatRequestSchema, background_tasks: BackgroundTasks):
     if not req.message or not req.model or not req.user_id or not req.bot_id:
         return ResponseSchema(response="Please provide message and role")
 
+    print("Received request:", req)
+
     response = aiSuite.chat(
         bot_id=req.bot_id,
         user_id=req.user_id,

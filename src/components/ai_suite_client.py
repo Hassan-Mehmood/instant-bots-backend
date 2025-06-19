@@ -84,9 +84,9 @@ class AiSuiteClient:
         #     model,
         # )
 
-        self.store_message(bot_id, user_id, message, "USER", model)
+        self.store_message(bot_id, user_id, message, "user", model)
         self.store_message(
-            bot_id, user_id, response.choices[0].message.content, "BOT", model
+            bot_id, user_id, response.choices[0].message.content, "assistant", model
         )
         print("Stored messages")
 
@@ -100,7 +100,7 @@ class AiSuiteClient:
         try:
             chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
 
-            if not chat and sender == "USER":
+            if not chat and sender == "user":
                 print("Chat not found")
 
                 response = self.client.chat.completions.create(
@@ -108,11 +108,15 @@ class AiSuiteClient:
                     messages=[
                         {
                             "role": "system",
-                            "content": "Choose an appropraite name for the chat based on the user's message. The name should be concise and relevant to the conversation.",
+                            "content": """Choose an appropraite name for the chat based on the user's message. 
+                            The name should be concise and relevant to the conversation.
+                            Your response should only contain the name of the chat without any additional text.""",
                         },
                         {"role": "user", "content": message},
                     ],
                 )
+
+                print("response from AI:", response.choices[0].message.content)
 
                 name = response.choices[0].message.content
 
@@ -120,11 +124,10 @@ class AiSuiteClient:
                 print("Creating new chat with name:", name)
 
                 db.add(chat)
-                db.commit()
-                db.refresh(chat)
+                db.flush()
 
             new_message = Message(
-                chat_id=chat.id, content=message, sender=MessageSender(sender)
+                chat_id=chat.id, content=message, sender=MessageSender(sender).value
             )
 
             db.add(new_message)

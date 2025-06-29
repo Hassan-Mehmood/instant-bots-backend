@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "aisuite>=0.1.11",
+    "aisuite[all]>=0.1.7",
     "alembic>=1.15.2",
     "docstring-parser>=0.16",
     "fastapi>=0.115.12",

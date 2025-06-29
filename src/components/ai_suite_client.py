@@ -42,6 +42,8 @@ class AiSuiteClient:
                 status_code=400, detail="Please provide valid and bot id"
             )
 
+        # model = "openai:gpt-4o"
+
         with SessionLocal() as db:
             bot = (
                 db.query(Bot)
@@ -71,18 +73,6 @@ class AiSuiteClient:
             raise HTTPException(
                 status_code=500, detail="Error generating chat response"
             )
-
-        # background_tasks.add_task(
-        #     self.store_message, bot_id, user_id, message, "USER", model
-        # )
-        # background_tasks.add_task(
-        #     self.store_message,
-        #     bot_id,
-        #     user_id,
-        #     response.choices[0].message.content,
-        #     "BOT",
-        #     model,
-        # )
 
         self.store_message(bot_id, user_id, message, "user", model)
         self.store_message(

@@ -36,7 +36,7 @@ These instructions will help you set up and run the project on your local machin
 
 Ensure you have the following installed:
 - Python 3.8+
-- Pip (Python package installer)
+- UV
 
 ### Installation
 
@@ -47,14 +47,10 @@ Ensure you have the following installed:
    ```
 
 2. **Create a virtual environment:**
-   - On Windows:
    ```bash
-   python -m venv venv
+   uv venv
    ```
-   - On maxOs/Linux
-   ```bash
-     python3 -m venv venv
-     ```
+   
 
 4. **Activate the virtual environment:**
 
@@ -69,14 +65,14 @@ Ensure you have the following installed:
 
 5. **Install the dependencies:**
    ```bash
-   pip install -r requirements.txt
+   uv sync
    ```
 
 ### Running the API
 
 To start the FastAPI server, run the following command:
 ```bash
-python app.py
+uv run main.py
 ```
 
 ### Accessing the API
@@ -85,10 +81,6 @@ Once the server is running, you can access the API at:
 ```
 http://127.0.0.1:8000
 ```
-
-### API Documentation
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- Redoc: `http://127.0.0.1:8000/redoc`
 
 ### Contributing
 [Hassan Mehmood](https://github.com/Hassan-Mehmood)

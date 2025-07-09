@@ -12,6 +12,23 @@ from src.models.utils import MessageSender
 
 load_dotenv()
 
+MODELS = [
+    "openai:gpt-4o",
+    "openai:gpt-4o",
+    "openai:gpt-4.1",
+    "openai:gpt-4.1-mini",
+    "openai:gpt-4o-mini",
+    "groq:gemma2-9b-it",
+    "groq:groq-1.5",
+    "groq:llama-3.1-8b-instant",
+    "groq:llama-3.3-70b-versatile",
+    "groq:meta-llama/llama-guard-4-12b",
+    "google:gemini-2.0-flash",
+    "google:gemini-2.0-pro",
+    "google:gemini-2.5-flash",
+    "google:gemini-2.5-pro",
+]
+
 
 class AiSuiteClient:
     def __init__(self):
@@ -20,8 +37,8 @@ class AiSuiteClient:
 
     def load_api_keys(self):
         os.getenv("OPENAI_API_KEY")
-        os.getenv("ANTHROPIC_API_KEY")
         os.getenv("GROQ_API_KEY")
+        os.getenv("GEMINI_API_KEY")
 
     def chat(
         self,
@@ -40,6 +57,12 @@ class AiSuiteClient:
         if not check_uuid(bot_id):
             raise HTTPException(
                 status_code=400, detail="Please provide valid and bot id"
+            )
+
+        if model not in MODELS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model. Available models: {', '.join(MODELS)}",
             )
 
         with SessionLocal() as db:
@@ -72,21 +95,9 @@ class AiSuiteClient:
                 status_code=500, detail="Error generating chat response"
             )
 
-        # background_tasks.add_task(
-        #     self.store_message, bot_id, user_id, message, "USER", model
-        # )
-        # background_tasks.add_task(
-        #     self.store_message,
-        #     bot_id,
-        #     user_id,
-        #     response.choices[0].message.content,
-        #     "BOT",
-        #     model,
-        # )
-
-        self.store_message(bot_id, user_id, message, "USER", model)
+        self.store_message(bot_id, user_id, message, "user", model)
         self.store_message(
-            bot_id, user_id, response.choices[0].message.content, "BOT", model
+            bot_id, user_id, response.choices[0].message.content, "assistant", model
         )
         print("Stored messages")
 
@@ -100,7 +111,7 @@ class AiSuiteClient:
         try:
             chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
 
-            if not chat and sender == "USER":
+            if not chat and sender == "user":
                 print("Chat not found")
 
                 response = self.client.chat.completions.create(
@@ -108,11 +119,15 @@ class AiSuiteClient:
                     messages=[
                         {
                             "role": "system",
-                            "content": "Choose an appropraite name for the chat based on the user's message. The name should be concise and relevant to the conversation.",
+                            "content": """Choose an appropraite name for the chat based on the user's message. 
+                            The name should be concise and relevant to the conversation.
+                            Your response should only contain the name of the chat without any additional text.""",
                         },
                         {"role": "user", "content": message},
                     ],
                 )
+
+                print("response from AI:", response.choices[0].message.content)
 
                 name = response.choices[0].message.content
 
@@ -120,11 +135,10 @@ class AiSuiteClient:
                 print("Creating new chat with name:", name)
 
                 db.add(chat)
-                db.commit()
-                db.refresh(chat)
+                db.flush()
 
             new_message = Message(
-                chat_id=chat.id, content=message, sender=MessageSender(sender)
+                chat_id=chat.id, content=message, sender=MessageSender(sender).value
             )
 
             db.add(new_message)

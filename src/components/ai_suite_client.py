@@ -12,6 +12,23 @@ from src.models.utils import MessageSender
 
 load_dotenv()
 
+MODELS = [
+    "openai:gpt-4o",
+    "openai:gpt-4o",
+    "openai:gpt-4.1",
+    "openai:gpt-4.1-mini",
+    "openai:gpt-4o-mini",
+    "groq:gemma2-9b-it",
+    "groq:groq-1.5",
+    "groq:llama-3.1-8b-instant",
+    "groq:llama-3.3-70b-versatile",
+    "groq:meta-llama/llama-guard-4-12b",
+    "google:gemini-2.0-flash",
+    "google:gemini-2.0-pro",
+    "google:gemini-2.5-flash",
+    "google:gemini-2.5-pro",
+]
+
 
 class AiSuiteClient:
     def __init__(self):
@@ -20,8 +37,8 @@ class AiSuiteClient:
 
     def load_api_keys(self):
         os.getenv("OPENAI_API_KEY")
-        os.getenv("ANTHROPIC_API_KEY")
         os.getenv("GROQ_API_KEY")
+        os.getenv("GEMINI_API_KEY")
 
     def chat(
         self,
@@ -42,7 +59,11 @@ class AiSuiteClient:
                 status_code=400, detail="Please provide valid and bot id"
             )
 
-        # model = "openai:gpt-4o"
+        if model not in MODELS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid model. Available models: {', '.join(MODELS)}",
+            )
 
         with SessionLocal() as db:
             bot = (

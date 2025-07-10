@@ -1,6 +1,9 @@
 import os
+import base64
+from typing import Optional, Any, Dict, List
+import fitz
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
@@ -44,13 +47,14 @@ class ModelClient:
         os.getenv("GROQ_API_KEY")
         os.getenv("GOOGLE_API_KEY")
 
-    def chat(
+    async def chat(
         self,
         message: str,
         user_id: str,
         bot_id: str,
         model: str,
         chat_history: list,
+        file: Optional[UploadFile] = None,
     ) -> dict:
         if not message or not model:
             raise HTTPException(
@@ -83,35 +87,68 @@ class ModelClient:
 
             prompt = bot.prompt
 
-        updated_history = chat_history.copy()
-        updated_history.append({"role": "user", "content": message})
+        user_message_content: List[Dict[str, Any]] = [{"type": "text", "text": message}]
+
+        if file:
+            if file.content_type and file.content_type.startswith("image/"):
+                file_content = await file.read()
+                base64_image = base64.b64encode(file_content).decode("utf-8")
+                image_url = f"data:{file.content_type};base64,{base64_image}"
+                user_message_content.append(
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                )
+            elif file.content_type == "application/pdf":
+                try:
+                    pdf_content = await file.read()
+                    doc = fitz.open(stream=pdf_content, filetype="pdf")
+                    pdf_text = ""
+                    for page in doc:
+                        pdf_text += page.get_text()  # type: ignore
+                    doc.close()
+                    user_message_content[0]["text"] += (
+                        f"\n\n--- PDF Content ---\n{pdf_text}"
+                    )
+                except Exception as e:
+                    print(f"Error processing PDF: {e}")
+                    # Optionally, inform the user that the PDF could not be read
+                    pass
+            else:
+                try:
+                    file_text = (await file.read()).decode("utf-8")
+                    user_message_content[0]["text"] += (
+                        f"\n\n--- File Content ---\n{file_text}"
+                    )
+                except Exception:
+                    pass
 
         messages = [
-            SystemMessage(prompt),
+            SystemMessage(str(prompt)),
             *[
                 HumanMessage(content=msg["content"])
                 if msg.get("role") == "user"
                 else AIMessage(content=msg["content"])
-                for msg in updated_history
+                for msg in chat_history
             ],
+            HumanMessage(content=user_message_content),  # type: ignore
         ]
 
+        response_content = ""
         try:
-            response = self.model.invoke(messages)
-
+            response = await self.model.ainvoke(messages)
+            response_content = str(response.content)
         except Exception as e:
             print("Error generating chat completion: ", str(e))
             raise HTTPException(
                 status_code=500, detail="Error generating chat response"
             )
-
         finally:
             self.store_message(bot_id, user_id, message, "user")
-            self.store_message(bot_id, user_id, response.content, "assistant")
+            if response_content:
+                self.store_message(bot_id, user_id, response_content, "assistant")
 
             return {
                 "role": "assistant",
-                "content": response.content,
+                "content": response_content,
             }
 
     def store_message(
@@ -122,7 +159,7 @@ class ModelClient:
         sender: str,
     ) -> None:
         db: Session = SessionLocal()
-
+        chat = None
         try:
             chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
 
@@ -151,13 +188,16 @@ class ModelClient:
                 db.add(chat)
                 db.flush()
 
-            new_message = Message(
-                chat_id=chat.id, content=message, sender=MessageSender(sender).value
-            )
+            if chat:
+                new_message = Message(
+                    chat_id=chat.id,
+                    content=message,
+                    sender=MessageSender(sender).value,
+                )
 
-            db.add(new_message)
-            db.commit()
-            print("Stored message")
+                db.add(new_message)
+                db.commit()
+                print("Stored message")
 
         except Exception as e:
             db.rollback()

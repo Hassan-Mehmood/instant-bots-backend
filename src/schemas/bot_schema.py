@@ -20,6 +20,7 @@ class BotRequestSchema(BaseModel):
     description: str
     prompt: str
     visibility: str
+    avatar: str
 
 
 class UpdateBotRequestSchema(BaseModel):

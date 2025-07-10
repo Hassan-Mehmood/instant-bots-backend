@@ -1,34 +1,43 @@
-from fastapi import APIRouter, BackgroundTasks
-from src.components.llm import LLM
-from src.schemas.chat_schema import ChatRequestSchema, ResponseSchema
-from src.components.ai_suite_client import ModelClient
+from fastapi import APIRouter, BackgroundTasks, Form, File, UploadFile
+from src.schemas.chat_schema import ResponseSchema
+from src.components.model import ModelClient
 from src.models.models import Chat
 
 from src.db.database import SessionLocal
 from sqlalchemy.orm import Session
+from typing import Optional
+import json
 
 
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
-llm = LLM()
 
 
 @chat_router.post("/", response_model=ResponseSchema)
-async def root(req: ChatRequestSchema):
-    # Add a proper error handling and logging system
-    if not req.message or not req.model or not req.user_id or not req.bot_id:
-        return ResponseSchema(response="Please provide message and role")
+async def root(
+    message: str = Form(...),
+    model: str = Form(...),
+    user_id: str = Form(...),
+    bot_id: str = Form(...),
+    chat_history: str = Form("[]"),
+    file: Optional[UploadFile] = File(None),
+):
+    if not message or not model or not user_id or not bot_id:
+        return ResponseSchema(
+            role="assistant", content="Please provide all required fields."
+        )
 
-    model_client = ModelClient(model_name=req.model)
+    model_client = ModelClient(model_name=model)
 
-    response = model_client.chat(
-        bot_id=req.bot_id,
-        user_id=req.user_id,
-        message=req.message,
-        model=req.model,
-        chat_history=req.chat_history,
+    parsed_chat_history = json.loads(chat_history)
+
+    response = await model_client.chat(
+        bot_id=bot_id,
+        user_id=user_id,
+        message=message,
+        model=model,
+        chat_history=parsed_chat_history,
+        file=file,
     )
-    # user_id: c2c4c22c-b98d-43fb-b33d-d42dd0df6187
-    # bot_id:  59d90193-b0c7-497d-9f50-14b0ae441c47
 
     return ResponseSchema(role=response["role"], content=response["content"])
 

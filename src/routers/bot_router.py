@@ -112,6 +112,7 @@ async def create_bot(
         description = req.description
         prompt = req.prompt
         visibility = req.visibility
+        avatar = req.avatar
 
         # if not check_uuid(user_id):
         #     raise HTTPException(
@@ -124,6 +125,7 @@ async def create_bot(
             prompt=prompt,
             user_id=user_id,
             visibility=visibility,
+            avatar=avatar,
         )
 
         print("adding new bot:")

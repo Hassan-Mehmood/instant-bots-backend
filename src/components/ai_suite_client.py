@@ -32,16 +32,17 @@ MODELS = {
 
 
 class ModelClient:
-    def __init__(self, model_name: str = "gpt-4o"):
+    def __init__(self, model_name):
         self.load_api_keys()
+        print("Loading model:", model_name)
         self.model = init_chat_model(
-            model=model_name, model_provider=MODELS.get(model_name, "openai")
+            model=model_name, model_provider=MODELS.get(model_name)
         )
 
     def load_api_keys(self):
         os.getenv("OPENAI_API_KEY")
         os.getenv("GROQ_API_KEY")
-        os.getenv("GEMINI_API_KEY")
+        os.getenv("GOOGLE_API_KEY")
 
     def chat(
         self,
@@ -85,9 +86,6 @@ class ModelClient:
         updated_history = chat_history.copy()
         updated_history.append({"role": "user", "content": message})
 
-        for msg in updated_history:
-            print("Message in history: ", msg)
-
         messages = [
             SystemMessage(prompt),
             *[
@@ -110,12 +108,11 @@ class ModelClient:
         finally:
             self.store_message(bot_id, user_id, message, "user")
             self.store_message(bot_id, user_id, response.content, "assistant")
-            print("Stored messages")
 
             return {
                 "role": "assistant",
                 "content": response.content,
-            }  # Assuming response.content contains the assistant's reply}
+            }
 
     def store_message(
         self,

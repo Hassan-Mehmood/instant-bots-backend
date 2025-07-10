@@ -13,14 +13,12 @@ llm = LLM()
 
 
 @chat_router.post("/", response_model=ResponseSchema)
-async def root(req: ChatRequestSchema, background_tasks: BackgroundTasks):
+async def root(req: ChatRequestSchema):
     # Add a proper error handling and logging system
     if not req.message or not req.model or not req.user_id or not req.bot_id:
         return ResponseSchema(response="Please provide message and role")
 
-    print("Received request:", req)
-
-    model_client = ModelClient(model_name="gpt-4o")
+    model_client = ModelClient(model_name=req.model)
 
     response = model_client.chat(
         bot_id=req.bot_id,

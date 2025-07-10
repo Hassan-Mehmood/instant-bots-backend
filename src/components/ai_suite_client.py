@@ -1,10 +1,12 @@
 import os
 
-from fastapi import HTTPException, BackgroundTasks
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-import aisuite as ai
+from langchain.chat_models import init_chat_model
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
 from src.db.database import SessionLocal
 from src.models.models import Bot, Chat, Message
 from src.routers.utils import check_uuid
@@ -12,28 +14,29 @@ from src.models.utils import MessageSender
 
 load_dotenv()
 
-MODELS = [
-    "openai:gpt-4o",
-    "openai:gpt-4o",
-    "openai:gpt-4.1",
-    "openai:gpt-4.1-mini",
-    "openai:gpt-4o-mini",
-    "groq:gemma2-9b-it",
-    "groq:groq-1.5",
-    "groq:llama-3.1-8b-instant",
-    "groq:llama-3.3-70b-versatile",
-    "groq:meta-llama/llama-guard-4-12b",
-    "google:gemini-2.0-flash",
-    "google:gemini-2.0-pro",
-    "google:gemini-2.5-flash",
-    "google:gemini-2.5-pro",
-]
+MODELS = {
+    "gpt-4o": "openai",
+    "gpt-4.1": "openai",
+    "gpt-4.1-mini": "openai",
+    "gpt-4o-mini": "openai",
+    "gemma2-9b-it": "groq",
+    "groq-1.5": "groq",
+    "llama-3.1-8b-instant": "groq",
+    "llama-3.3-70b-versatile": "groq",
+    "meta-llama/llama-guard-4-12b": "groq",
+    "gemini-2.0-flash": "google_genai",
+    "gemini-2.0-pro": "google_genai",
+    "gemini-2.5-flash": "google_genai",
+    "gemini-2.5-pro": "google_genai",
+}
 
 
-class AiSuiteClient:
-    def __init__(self):
+class ModelClient:
+    def __init__(self, model_name: str = "gpt-4o"):
         self.load_api_keys()
-        self.client = ai.Client()
+        self.model = init_chat_model(
+            model=model_name, model_provider=MODELS.get(model_name, "openai")
+        )
 
     def load_api_keys(self):
         os.getenv("OPENAI_API_KEY")
@@ -47,7 +50,6 @@ class AiSuiteClient:
         bot_id: str,
         model: str,
         chat_history: list,
-        background_tasks: BackgroundTasks,
     ) -> dict:
         if not message or not model:
             raise HTTPException(
@@ -62,7 +64,7 @@ class AiSuiteClient:
         if model not in MODELS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid model. Available models: {', '.join(MODELS)}",
+                detail=f"Invalid model. Available models: {', '.join(MODELS.keys())}",
             )
 
         with SessionLocal() as db:
@@ -81,13 +83,23 @@ class AiSuiteClient:
             prompt = bot.prompt
 
         updated_history = chat_history.copy()
-        updated_history.insert(0, {"role": "system", "content": prompt})
         updated_history.append({"role": "user", "content": message})
 
+        for msg in updated_history:
+            print("Message in history: ", msg)
+
+        messages = [
+            SystemMessage(prompt),
+            *[
+                HumanMessage(content=msg["content"])
+                if msg.get("role") == "user"
+                else AIMessage(content=msg["content"])
+                for msg in updated_history
+            ],
+        ]
+
         try:
-            response = self.client.chat.completions.create(
-                model=model, messages=updated_history
-            )
+            response = self.model.invoke(messages)
 
         except Exception as e:
             print("Error generating chat completion: ", str(e))
@@ -95,16 +107,22 @@ class AiSuiteClient:
                 status_code=500, detail="Error generating chat response"
             )
 
-        self.store_message(bot_id, user_id, message, "user", model)
-        self.store_message(
-            bot_id, user_id, response.choices[0].message.content, "assistant", model
-        )
-        print("Stored messages")
+        finally:
+            self.store_message(bot_id, user_id, message, "user")
+            self.store_message(bot_id, user_id, response.content, "assistant")
+            print("Stored messages")
 
-        return {"role": "assistant", "content": response.choices[0].message.content}
+            return {
+                "role": "assistant",
+                "content": response.content,
+            }  # Assuming response.content contains the assistant's reply}
 
     def store_message(
-        self, bot_id: str, user_id: str, message: str, sender: str, model: str
+        self,
+        bot_id: str,
+        user_id: str,
+        message: str,
+        sender: str,
     ) -> None:
         db: Session = SessionLocal()
 
@@ -114,22 +132,21 @@ class AiSuiteClient:
             if not chat and sender == "user":
                 print("Chat not found")
 
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": """Choose an appropraite name for the chat based on the user's message. 
+                response = self.model.invoke(
+                    [
+                        SystemMessage(
+                            """ You are responsible for naming the chats between users and bots. You will be given first message of the chat and you need to come up with a name for the chat.
+                            Choose an appropraite name for the chat based on the user's message. 
                             The name should be concise and relevant to the conversation.
-                            Your response should only contain the name of the chat without any additional text.""",
-                        },
-                        {"role": "user", "content": message},
-                    ],
+                            Your response should only contain the name of the chat without any additional text."""
+                        ),
+                        HumanMessage(content=message),
+                    ]
                 )
 
-                print("response from AI:", response.choices[0].message.content)
+                print("Chat Name:", response.content)
 
-                name = response.choices[0].message.content
+                name = response.content
 
                 chat = Chat(bot_id=bot_id, user_id=user_id, name=name)
                 print("Creating new chat with name:", name)

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks
 from src.components.llm import LLM
 from src.schemas.chat_schema import ChatRequestSchema, ResponseSchema
-from src.components.ai_suite_client import AiSuiteClient
+from src.components.ai_suite_client import ModelClient
 from src.models.models import Chat
 
 from src.db.database import SessionLocal
@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
 llm = LLM()
-aiSuite = AiSuiteClient()
 
 
 @chat_router.post("/", response_model=ResponseSchema)
@@ -21,13 +20,14 @@ async def root(req: ChatRequestSchema, background_tasks: BackgroundTasks):
 
     print("Received request:", req)
 
-    response = aiSuite.chat(
+    model_client = ModelClient(model_name="gpt-4o")
+
+    response = model_client.chat(
         bot_id=req.bot_id,
         user_id=req.user_id,
         message=req.message,
         model=req.model,
         chat_history=req.chat_history,
-        background_tasks=background_tasks,
     )
     # user_id: c2c4c22c-b98d-43fb-b33d-d42dd0df6187
     # bot_id:  59d90193-b0c7-497d-9f50-14b0ae441c47

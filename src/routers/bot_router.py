@@ -35,6 +35,11 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
                 status_code=404, content={"message": "No bots found for the user"}
             )
 
+        user = db.query(User).filter_by(clerk_id=user_id).first()
+
+        if not user:
+            return JSONResponse(status_code=404, content={"message": "User not found"})
+
         return JSONResponse(
             status_code=200,
             content={
@@ -46,6 +51,7 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
                         "description": bot.description,
                         "prompt": bot.prompt,
                         "avatar": bot.avatar,
+                        "favorite": bot.id in user.favorite_bots,
                         "visibility": bot.visibility,
                         "created_at": bot.created_at.isoformat(),
                         "updated_at": bot.updated_at.isoformat(),

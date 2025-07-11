@@ -90,7 +90,9 @@ class ModelClient:
         user_message_content: List[Dict[str, Any]] = [{"type": "text", "text": message}]
 
         if file:
+            print("File received")
             if file.content_type and file.content_type.startswith("image/"):
+                print("Image file")
                 file_content = await file.read()
                 base64_image = base64.b64encode(file_content).decode("utf-8")
                 image_url = f"data:{file.content_type};base64,{base64_image}"
@@ -98,6 +100,7 @@ class ModelClient:
                     {"type": "image_url", "image_url": {"url": image_url}}
                 )
             elif file.content_type == "application/pdf":
+                print("PDF file")
                 try:
                     pdf_content = await file.read()
                     doc = fitz.open(stream=pdf_content, filetype="pdf")
@@ -108,11 +111,14 @@ class ModelClient:
                     user_message_content[0]["text"] += (
                         f"\n\n--- PDF Content ---\n{pdf_text}"
                     )
+
+                    print("PDF text:", pdf_text)
                 except Exception as e:
                     print(f"Error processing PDF: {e}")
                     # Optionally, inform the user that the PDF could not be read
                     pass
             else:
+                print("Other file")
                 try:
                     file_text = (await file.read()).decode("utf-8")
                     user_message_content[0]["text"] += (

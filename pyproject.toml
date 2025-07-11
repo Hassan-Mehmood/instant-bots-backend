@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.11.4",
     "pydantic-settings>=2.9.1",
     "pymupdf>=1.26.3",
+    "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.40",
     "stripe>=12.2.0",
     "svix>=1.65.0",

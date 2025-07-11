@@ -25,6 +25,8 @@ async def root(
         return ResponseSchema(
             role="assistant", content="Please provide all required fields."
         )
+    if file:
+        print("File received")
 
     model_client = ModelClient(model_name=model)
 

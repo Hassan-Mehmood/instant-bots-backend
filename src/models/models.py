@@ -26,6 +26,22 @@ users_bots = Table(
 )
 
 
+class File(Base):
+    __tablename__ = "files"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4
+    )
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.clerk_id"))
+    user: Mapped["User"] = relationship("User", back_populates="files")
+    file_name = Column(String)
+    file_size = Column(Integer)
+    file_path = Column(String)
+    file_type = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
+
+
 #! ------------------- Primary Tables -------------------------------
 class User(Base):
     __tablename__ = "users"
@@ -57,6 +73,7 @@ class User(Base):
         "Transaction", back_populates="user"
     )
 
+    files: Mapped[list["File"]] = relationship("File", back_populates="user")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
@@ -140,5 +157,6 @@ class Message(Base):
     chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")
     content = Column(String)
     sender = Column(String, nullable=False)
+    file_path = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)

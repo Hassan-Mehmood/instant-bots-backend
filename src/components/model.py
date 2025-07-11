@@ -14,6 +14,7 @@ from src.db.database import SessionLocal
 from src.models.models import Bot, Chat, Message
 from src.routers.utils import check_uuid
 from src.models.utils import MessageSender
+from src.components.file_upload import upload_file
 
 load_dotenv()
 
@@ -56,6 +57,7 @@ class ModelClient:
         chat_history: list,
         file: Optional[UploadFile] = None,
     ) -> dict:
+        file_url = None
         if not message or not model:
             raise HTTPException(
                 status_code=400, detail="Please provide model and message"
@@ -92,13 +94,20 @@ class ModelClient:
         if file:
             print("File received")
             if file.content_type and file.content_type.startswith("image/"):
-                print("Image file")
-                file_content = await file.read()
-                base64_image = base64.b64encode(file_content).decode("utf-8")
-                image_url = f"data:{file.content_type};base64,{base64_image}"
-                user_message_content.append(
-                    {"type": "image_url", "image_url": {"url": image_url}}
-                )
+                try:
+                    print("Image file")
+                    file_content = await file.read()
+                    base64_image = base64.b64encode(file_content).decode("utf-8")
+                    image_url = f"data:{file.content_type};base64,{base64_image}"
+                    user_message_content.append(
+                        {"type": "image_url", "image_url": {"url": image_url}}
+                    )
+                except Exception as e:
+                    print(f"Error processing image: {e}")
+                    return {
+                        "role": "assistant",
+                        "content": "Error processing image",
+                    }
             elif file.content_type == "application/pdf":
                 print("PDF file")
                 try:
@@ -115,8 +124,10 @@ class ModelClient:
                     print("PDF text:", pdf_text)
                 except Exception as e:
                     print(f"Error processing PDF: {e}")
-                    # Optionally, inform the user that the PDF could not be read
-                    pass
+                    return {
+                        "role": "assistant",
+                        "content": "Error processing PDF",
+                    }
             else:
                 print("Other file")
                 try:
@@ -125,7 +136,13 @@ class ModelClient:
                         f"\n\n--- File Content ---\n{file_text}"
                     )
                 except Exception:
-                    pass
+                    return {
+                        "role": "assistant",
+                        "content": "Error processing file",
+                    }
+            file.file.seek(0)
+            file_url = await upload_file(file)
+            print("File URL:", file_url)
 
         messages = [
             SystemMessage(str(prompt)),
@@ -148,9 +165,11 @@ class ModelClient:
                 status_code=500, detail="Error generating chat response"
             )
         finally:
-            self.store_message(bot_id, user_id, message, "user")
+            self.store_message(
+                bot_id, user_id, message, "user", file_url if file_url else None
+            )
             if response_content:
-                self.store_message(bot_id, user_id, response_content, "assistant")
+                self.store_message(bot_id, user_id, response_content, "assistant", None)
 
             return {
                 "role": "assistant",
@@ -163,6 +182,7 @@ class ModelClient:
         user_id: str,
         message: str,
         sender: str,
+        file_path: Optional[str] = None,
     ) -> None:
         db: Session = SessionLocal()
         chat = None
@@ -199,6 +219,7 @@ class ModelClient:
                     chat_id=chat.id,
                     content=message,
                     sender=MessageSender(sender).value,
+                    file_path=file_path,
                 )
 
                 db.add(new_message)

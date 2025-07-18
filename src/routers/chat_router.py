@@ -60,7 +60,12 @@ async def get_chat_history(user_id: str, bot_id: str):
         chat_history = []
         for message in chat.messages:
             chat_history.append(
-                {"id": message.id, "role": message.sender, "content": message.content}
+                {
+                    "id": message.id,
+                    "role": message.sender,
+                    "content": message.content,
+                    "file_path": message.file_path,
+                }
             )
 
         return {"chat_history": chat_history}

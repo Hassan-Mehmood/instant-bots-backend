@@ -22,6 +22,10 @@ async def root(
     file: Optional[UploadFile] = File(None),
 ):
     if not message or not model or not user_id or not bot_id:
+        print("Message:", message)
+        print("Model:", model)
+        print("User ID:", user_id)
+        print("Bot ID:", bot_id)
         return ResponseSchema(
             role="assistant", content="Please provide all required fields."
         )

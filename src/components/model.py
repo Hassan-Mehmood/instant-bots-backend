@@ -2,6 +2,8 @@ import os
 import base64
 from typing import Optional, Any, Dict, List
 import fitz
+import requests
+import mimetypes
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -47,6 +49,72 @@ class ModelClient:
         os.getenv("OPENAI_API_KEY")
         os.getenv("GROQ_API_KEY")
         os.getenv("GOOGLE_API_KEY")
+
+    def _get_file_type_from_url(self, url: str) -> Optional[str]:
+        mime_type, _ = mimetypes.guess_type(url)
+        return mime_type
+
+    async def _process_history(self, chat_history: List[Dict[str, Any]]) -> List[Any]:
+        processed_history = []
+        for msg in chat_history:
+            print("Message:", msg)
+
+            role = msg.get("role")
+            content = msg.get("content")
+            file_path = msg.get("file_path")
+
+            if role == "user":
+                message_content: List[Dict[str, Any]] = [
+                    {"type": "text", "text": content or ""}
+                ]
+                if file_path:
+                    print("File path:", file_path)
+                    try:
+                        print(f"Downloading file from history: {file_path}")
+                        response = requests.get(file_path)
+                        response.raise_for_status()
+                        file_content = response.content
+                        mime_type = self._get_file_type_from_url(file_path)
+                        print(f"File from history mime_type: {mime_type}")
+
+                        if mime_type and mime_type.startswith("image/"):
+                            base64_image = base64.b64encode(file_content).decode(
+                                "utf-8"
+                            )
+                            image_url = f"data:{mime_type};base64,{base64_image}"
+                            message_content.append(
+                                {"type": "image_url", "image_url": {"url": image_url}}
+                            )
+                        elif mime_type == "application/pdf":
+                            doc = fitz.open(stream=file_content, filetype="pdf")
+                            pdf_text = ""
+                            for page in doc:
+                                pdf_text += page.get_text()  # type: ignore
+                            doc.close()
+                            message_content[0]["text"] += (
+                                f"\n\n--- PDF Content ---\n{pdf_text}"
+                            )
+                        else:
+                            try:
+                                file_text = file_content.decode("utf-8")
+                                message_content[0]["text"] += (
+                                    f"\n\n--- File Content ---\n{file_text}"
+                                )
+                            except UnicodeDecodeError:
+                                print(
+                                    f"Could not decode file content from {file_path} as text."
+                                )
+
+                    except requests.RequestException as e:
+                        print(f"Error downloading file from {file_path}: {e}")
+                    except Exception as e:
+                        print(f"Error processing file from history: {e}")
+
+                processed_history.append(HumanMessage(content=message_content))  # type: ignore
+            elif role == "assistant":
+                processed_history.append(AIMessage(content=content))  # type: ignore
+
+        return processed_history
 
     async def chat(
         self,
@@ -144,14 +212,11 @@ class ModelClient:
             file_url = await upload_file(file)
             print("File URL:", file_url)
 
+        processed_chat_history = await self._process_history(chat_history)
+
         messages = [
             SystemMessage(str(prompt)),
-            *[
-                HumanMessage(content=msg["content"])
-                if msg.get("role") == "user"
-                else AIMessage(content=msg["content"])
-                for msg in chat_history
-            ],
+            *processed_chat_history,
             HumanMessage(content=user_message_content),  # type: ignore
         ]
 

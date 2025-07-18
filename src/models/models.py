@@ -13,7 +13,7 @@ from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 
-from src.models.utils import TransactionType, MessageSender
+from src.models.utils import TransactionType
 from src.db.database import Base
 
 #! ------------------- Secondary Tables ------------------------------

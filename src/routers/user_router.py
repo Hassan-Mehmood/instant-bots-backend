@@ -128,8 +128,11 @@ async def user_credits(user_id):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
+        if user.credits is None:
+            user.credits = 0  # type: ignore
+
         return {
-            "credits": user.credits if user.credits else 0,
+            "credits": user.credits,
             "status": 200,
         }
 

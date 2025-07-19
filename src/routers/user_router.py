@@ -18,18 +18,6 @@ async def get_chats(user_id: str):
     if not user_id or user_id == "undefined":
         return
 
-    # result = (
-    #     database.execute(
-    #         select(Chat)
-    #         .options(joinedload(Chat.messages))
-    #         .options(joinedload(Chat.bot))
-    #         .filter_by(user_id=user_id)
-    #     )
-    #     .unique()
-    #     .scalars()
-    #     .all()
-    # )
-
     result = database.query(Chat).filter_by(user_id=user_id)
 
     if not result:
@@ -88,6 +76,7 @@ async def get_user_profile(user_id: str):
                     "username": user.username,
                     "email": user.email,
                     "img_url": user.img_url,
+                    "credits": user.credits,
                 },
                 "favorite_bots": [
                     {

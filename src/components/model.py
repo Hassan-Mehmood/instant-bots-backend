@@ -5,7 +5,7 @@ import fitz
 import requests
 import mimetypes
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, BackgroundTasks
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
@@ -123,6 +123,7 @@ class ModelClient:
         bot_id: str,
         model: str,
         chat_history: list,
+        background_tasks: BackgroundTasks,
         file: Optional[UploadFile] = None,
     ) -> dict:
         file_url = None
@@ -229,17 +230,25 @@ class ModelClient:
             raise HTTPException(
                 status_code=500, detail="Error generating chat response"
             )
-        finally:
-            self.store_message(
-                bot_id, user_id, message, "user", file_url if file_url else None
-            )
-            if response_content:
-                self.store_message(bot_id, user_id, response_content, "assistant", None)
 
-            return {
-                "role": "assistant",
-                "content": response_content,
-            }
+        background_tasks.add_task(
+            self.store_message,
+            bot_id,
+            user_id,
+            message,
+            "user",
+            file_url if file_url else None,
+        )
+        if response_content:
+            background_tasks.add_task(
+                self.store_message, bot_id, user_id, response_content, "assistant", None
+            )
+
+        return {
+            "role": "assistant",
+            "content": response_content,
+            "file_path": file_url,
+        }
 
     def store_message(
         self,

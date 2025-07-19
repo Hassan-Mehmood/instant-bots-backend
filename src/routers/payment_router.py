@@ -2,18 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.requests import Request
 from sqlalchemy.orm import Session
 from src.db.database import get_db
-from src.models.models import User
+from src.models.models import User, Transaction
+from src.models.utils import TransactionType
 
+from pydantic import BaseModel
+
+from dotenv import load_dotenv
 
 import os
 import stripe
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-
-from pydantic import BaseModel
-
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -47,7 +47,8 @@ async def create_checkout_session(
         raise HTTPException(
             status_code=400, detail="Invalid amount. Choose from 100, 500, or 1000."
         )
-
+    if not price_id:
+        raise HTTPException(status_code=500, detail="Price ID not found for the amount")
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
         line_items=[
@@ -85,7 +86,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid payload: {str(e)}")
-        except stripe.error.SignatureVerificationError as e:
+        except stripe.SignatureVerificationError as e:
             raise HTTPException(status_code=400, detail=f"Invalid signature: {str(e)}")
 
         if event["type"] == "checkout.session.completed":
@@ -101,11 +102,29 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 if not user:
                     raise HTTPException(status_code=404, detail="User not found")
 
-                user.credits += int(credits_to_add)
+                setattr(
+                    user,
+                    "credits",
+                    (getattr(user, "credits", 0) or 0) + int(credits_to_add),
+                )
 
-                print("Adding credits to user:", user_id, "Amount:", credits_to_add)
+                transaction = Transaction(
+                    user_id=user.id,
+                    type=TransactionType.PURCHASE,
+                    amount=int(credits_to_add),
+                )
+
+                print(
+                    "Adding credits and transaction for user:",
+                    user_id,
+                    "Amount:",
+                    credits_to_add,
+                )
                 db.add(user)
+                db.add(transaction)
                 db.commit()
+                db.refresh(user)
+                db.refresh(transaction)
 
             except Exception as e:
                 print("Error processing payment: ", str(e))

@@ -101,9 +101,6 @@ class Bot(Base):
         "User", secondary="users_bots", back_populates="favorite_bots"
     )
 
-    transactions: Mapped[list["Transaction"]] = relationship(
-        "Transaction", back_populates="bot"
-    )
     chats: Mapped[list["Chat"]] = relationship(
         "Chat", back_populates="bot", cascade="all, delete-orphan"
     )
@@ -122,8 +119,6 @@ class Transaction(Base):
     user: Mapped["User"] = relationship("User", back_populates="transactions")
     type = Column(Enum(TransactionType), nullable=False)
     amount = Column(Integer)
-    bot_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bots.id"))
-    bot: Mapped["Bot"] = relationship("Bot", back_populates="transactions")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 

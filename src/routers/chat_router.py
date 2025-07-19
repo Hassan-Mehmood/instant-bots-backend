@@ -14,6 +14,7 @@ chat_router = APIRouter(prefix="/chat", tags=["chat"])
 
 @chat_router.post("/", response_model=ResponseSchema)
 async def root(
+    background_tasks: BackgroundTasks,
     message: str = Form(...),
     model: str = Form(...),
     user_id: str = Form(...),
@@ -42,10 +43,15 @@ async def root(
         message=message,
         model=model,
         chat_history=parsed_chat_history,
+        background_tasks=background_tasks,
         file=file,
     )
 
-    return ResponseSchema(role=response["role"], content=response["content"])
+    return ResponseSchema(
+        role=response["role"],
+        content=response["content"],
+        file_path=response["file_path"],
+    )
 
 
 @chat_router.get("/{user_id}/{bot_id}")

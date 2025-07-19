@@ -131,10 +131,12 @@ async def user_credits(user_id):
         if user.credits is None:
             user.credits = 0  # type: ignore
 
-        return {
-            "credits": user.credits,
-            "status": 200,
-        }
+        return JSONResponse(
+            status_code=200,
+            content={
+                "credits": user.credits,
+            },
+        )
 
     except HTTPException as http_execp:
         raise http_execp

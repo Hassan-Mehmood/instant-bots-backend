@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.routers.chat_router import chat_router
@@ -44,15 +45,24 @@ async def root():
 
 @app.get("/aggregate/{user_id}")
 async def aggregate(user_id: str, db: Session = Depends(get_db)):
+    if not user_id:
+        return {"error": "User ID is required"}
+
     bots = db.query(Bot).count()
     user = db.query(User).filter(User.clerk_id == user_id).first()
 
     if not user:
-        return {"error": "User not found"}
+        return JSONResponse(
+            status_code=404,
+            content={"error": "User not found"},
+        )
 
     total_credits = user.credits
 
-    return {
-        "bots": bots,
-        "total_credits": total_credits,
-    }
+    return JSONResponse(
+        status_code=200,
+        content={
+            "bots": bots,
+            "total_credits": total_credits,
+        },
+    )

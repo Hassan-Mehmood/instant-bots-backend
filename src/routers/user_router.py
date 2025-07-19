@@ -144,3 +144,44 @@ async def user_credits(user_id):
     except Exception as e:
         print("Exception in user_credits: ", str(e))
         return {"status": 500, "credits": None}
+
+
+@user_router.get("/transaction-history/{user_id}")
+async def transaction_history(user_id: str):
+    try:
+        if not user_id:
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
+            )
+
+        user = database.query(User).filter_by(clerk_id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if user.transactions is None:
+            user.transactions = []  # type: ignore
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "transaction_history": [
+                    {
+                        "id": str(transaction.id),
+                        "amount": transaction.amount,
+                        "type": transaction.type,
+                    }
+                    for transaction in user.transactions
+                ],
+            },
+        )
+
+    except HTTPException as http_execp:
+        raise http_execp
+
+    except Exception as e:
+        print("Exception in transaction_history: ", str(e))
+        return JSONResponse(
+            status_code=500,
+            content={"status": 500, "message": "Internal server error"},
+        )

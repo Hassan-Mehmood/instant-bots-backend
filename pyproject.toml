@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "aisuite[all]>=0.1.7",
     "alembic>=1.15.2",
+    "cloudinary>=1.44.1",
     "docstring-parser>=0.16",
     "fastapi>=0.115.12",
     "langchain>=0.3.25",

@@ -4,8 +4,6 @@ from src.models.models import Chat, User
 from src.db.database import SessionLocal
 
 
-from src.routers.utils import check_uuid
-
 user_router = APIRouter(prefix="/users", tags=["users"])
 
 database = SessionLocal()
@@ -56,12 +54,12 @@ async def get_chats(user_id: str):
 @user_router.get("/profile/{user_id}")
 async def get_user_profile(user_id: str):
     try:
-        if not user_id or not check_uuid(user_id):
+        if not user_id:
             raise HTTPException(
                 status_code=400, detail="Please provide a valid user id"
             )
 
-        user = database.query(User).filter_by(id=user_id).first()
+        user = database.query(User).filter_by(clerk_id=user_id).first()
 
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -131,7 +129,7 @@ async def user_credits(user_id):
             raise HTTPException(status_code=404, detail="User not found")
 
         return {
-            "credits": user.credits,
+            "credits": user.credits if user.credits else 0,
             "status": 200,
         }
 

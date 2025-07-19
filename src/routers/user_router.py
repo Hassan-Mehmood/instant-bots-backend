@@ -170,6 +170,7 @@ async def transaction_history(user_id: str):
                         "id": str(transaction.id),
                         "amount": transaction.amount,
                         "type": transaction.type,
+                        "date": transaction.created_at.isoformat(),
                     }
                     for transaction in user.transactions
                 ],

@@ -22,15 +22,14 @@ async def upload_file(file: UploadFile):
 
         file_content = await file.read()
 
-        # Wrap the file bytes in a BytesIO object
         file_stream = io.BytesIO(file_content)
 
-        # Upload to Cloudinary
         blob = cloudinary.uploader.upload(
             file=file_stream,
             public_id=file.filename,
-            resource_type="auto",
+            resource_type="raw",
             folder="uploads",
+            type="upload",
         )
 
         return blob.get("secure_url")

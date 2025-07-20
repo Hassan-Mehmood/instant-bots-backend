@@ -75,6 +75,7 @@ async def get_chat_history(user_id: str, bot_id: str):
                     "role": message.sender,
                     "content": message.content,
                     "file_path": message.file_path,
+                    "created_at": message.created_at.isoformat(),
                 }
             )
 

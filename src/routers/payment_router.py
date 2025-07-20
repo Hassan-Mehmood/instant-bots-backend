@@ -58,8 +58,8 @@ async def create_checkout_session(
             }
         ],
         mode="payment",
-        success_url="http://localhost:3000/home",
-        cancel_url="http://localhost:3000/profile",
+        success_url="https://fyp-frontend-fhyv.vercel.app/home",
+        cancel_url="https://fyp-frontend-fhyv.vercel.app/home",
         metadata={
             "user_id": user_id,
             "amount": str(amount),

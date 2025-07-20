@@ -115,71 +115,39 @@ async def get_user_profile(user_id: str):
         )
 
 
-@user_router.get("/credits/{user_id}")
-async def user_credits(user_id):
-    try:
-        if not user_id:
-            raise HTTPException(
-                status_code=400, detail="Please provide a valid user id"
-            )
-
-        user = database.query(User).filter_by(clerk_id=user_id).first()
-
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if user.credits is None:
-            user.credits = 0  # type: ignore
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "credits": user.credits,
-            },
-        )
-
-    except HTTPException as http_execp:
-        raise http_execp
-
-    except Exception as e:
-        print("Exception in user_credits: ", str(e))
-        return {"status": 500, "credits": None}
-
-
 @user_router.get("/transaction-history/{user_id}")
-async def transaction_history(user_id: str):
+async def transaction_history_with_session(user_id: str):
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Please provide a valid user id")
+
     try:
-        if not user_id:
-            raise HTTPException(
-                status_code=400, detail="Please provide a valid user id"
+        # Create a new session for this request
+        with database.begin():  # This automatically handles commit/rollback
+            user = database.query(User).filter_by(clerk_id=user_id).first()
+
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if user.transactions is None:
+                user.transactions = []
+
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "transaction_history": [
+                        {
+                            "id": str(transaction.id),
+                            "amount": transaction.amount,
+                            "type": transaction.type.value,
+                            "date": transaction.created_at.isoformat(),
+                        }
+                        for transaction in user.transactions
+                    ],
+                },
             )
 
-        user = database.query(User).filter_by(clerk_id=user_id).first()
-
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if user.transactions is None:
-            user.transactions = []  # type: ignore
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "transaction_history": [
-                    {
-                        "id": str(transaction.id),
-                        "amount": transaction.amount,
-                        "type": transaction.type.value,
-                        "date": transaction.created_at.isoformat(),
-                    }
-                    for transaction in user.transactions
-                ],
-            },
-        )
-
-    except HTTPException as http_execp:
-        raise http_execp
-
+    except HTTPException:
+        raise
     except Exception as e:
         print("Exception in transaction_history: ", str(e))
         return JSONResponse(

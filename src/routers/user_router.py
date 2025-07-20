@@ -1,20 +1,20 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from src.models.models import Chat, User
-from src.db.database import SessionLocal
+from src.db.database import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
 
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 
-database = SessionLocal()
-
 
 @user_router.get("/chats/{user_id}")
-async def get_chats(user_id: str):
+async def get_chats(user_id: str, db: Session = Depends(get_db)):
     if not user_id or user_id == "undefined":
         return
 
-    result = database.query(Chat).filter_by(user_id=user_id)
+    result = db.query(Chat).filter_by(user_id=user_id)
 
     if not result:
         return JSONResponse(
@@ -52,14 +52,14 @@ async def get_chats(user_id: str):
 
 
 @user_router.get("/profile/{user_id}")
-async def get_user_profile(user_id: str):
+async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     try:
         if not user_id:
             raise HTTPException(
                 status_code=400, detail="Please provide a valid user id"
             )
 
-        user = database.query(User).filter_by(clerk_id=user_id).first()
+        user = db.query(User).filter_by(clerk_id=user_id).first()
 
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -115,39 +115,71 @@ async def get_user_profile(user_id: str):
         )
 
 
-@user_router.get("/transaction-history/{user_id}")
-async def transaction_history_with_session(user_id: str):
-    if not user_id:
-        raise HTTPException(status_code=400, detail="Please provide a valid user id")
-
+@user_router.get("/credits/{user_id}")
+async def user_credits(user_id, db: Session = Depends(get_db)):
     try:
-        # Create a new session for this request
-        with database.begin():  # This automatically handles commit/rollback
-            user = database.query(User).filter_by(clerk_id=user_id).first()
-
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
-
-            if user.transactions is None:
-                user.transactions = []
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "transaction_history": [
-                        {
-                            "id": str(transaction.id),
-                            "amount": transaction.amount,
-                            "type": transaction.type.value,
-                            "date": transaction.created_at.isoformat(),
-                        }
-                        for transaction in user.transactions
-                    ],
-                },
+        if not user_id:
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
             )
 
-    except HTTPException:
-        raise
+        user = db.query(User).filter_by(clerk_id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if user.credits is None:
+            user.credits = 0  # type: ignore
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "credits": user.credits,
+            },
+        )
+
+    except HTTPException as http_execp:
+        raise http_execp
+
+    except Exception as e:
+        print("Exception in user_credits: ", str(e))
+        return {"status": 500, "credits": None}
+
+
+@user_router.get("/transaction-history/{user_id}")
+async def transaction_history(user_id: str, db: Session = Depends(get_db)):
+    try:
+        if not user_id:
+            raise HTTPException(
+                status_code=400, detail="Please provide a valid user id"
+            )
+
+        user = db.query(User).filter_by(clerk_id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if user.transactions is None:
+            user.transactions = []  # type: ignore
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "transaction_history": [
+                    {
+                        "id": str(transaction.id),
+                        "amount": transaction.amount,
+                        "type": transaction.type.value,
+                        "date": transaction.created_at.isoformat(),
+                    }
+                    for transaction in user.transactions
+                ],
+            },
+        )
+
+    except HTTPException as http_execp:
+        raise http_execp
+
     except Exception as e:
         print("Exception in transaction_history: ", str(e))
         return JSONResponse(

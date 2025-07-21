@@ -9,9 +9,6 @@ from fastapi import HTTPException, UploadFile, BackgroundTasks
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-
 import aisuite as ai
 
 from src.db.database import SessionLocal
@@ -22,21 +19,23 @@ from src.components.file_upload import upload_file
 
 load_dotenv()
 
-MODELS = {
-    "gpt-4o": "openai",
-    "gpt-4.1": "openai",
-    "gpt-4.1-mini": "openai",
-    "gpt-4o-mini": "openai",
-    "gemma2-9b-it": "groq",
-    "groq-1.5": "groq",
-    "llama-3.1-8b-instant": "groq",
-    "llama-3.3-70b-versatile": "groq",
-    "meta-llama/llama-guard-4-12b": "groq",
-    "gemini-2.0-flash": "google_genai",
-    "gemini-2.0-pro": "google_genai",
-    "gemini-2.5-flash": "google_genai",
-    "gemini-2.5-pro": "google_genai",
-}
+MODELS = [
+    "openai:gpt-4o",
+    "openai:gpt-4o",
+    "openai:gpt-4.1",
+    "openai:gpt-4.1-mini",
+    "openai:gpt-4o-mini",
+    "groq:gemma2-9b-it",
+    "groq:llama-3.1-8b-instant",
+    "groq:llama-3.3-70b-versatile",
+    "google:gemini-2.0-flash",
+    "google:gemini-2.0-pro",
+    "google:gemini-2.5-flash",
+    "google:gemini-2.5-pro",
+    "anthropic:claude-opus-4-20250514",
+    "anthropic:claude-sonnet-4-20250514",
+    "anthropic:claude-3-7-sonnet-latest",
+]
 
 
 class ModelClient:
@@ -52,6 +51,7 @@ class ModelClient:
         os.getenv("OPENAI_API_KEY")
         os.getenv("GROQ_API_KEY")
         os.getenv("GOOGLE_API_KEY")
+        os.getenv("ANTHROPIC_API_KEY")
 
     def _get_file_type_from_url(self, url: str) -> Optional[str]:
         mime_type, _ = mimetypes.guess_type(url)
@@ -60,8 +60,6 @@ class ModelClient:
     async def _process_history(self, chat_history: List[Dict[str, Any]]) -> List[Any]:
         processed_history = []
         for msg in chat_history:
-            print("Message:", msg)
-
             role = msg.get("role")
             content = msg.get("content")
             file_path = msg.get("file_path")
@@ -71,14 +69,11 @@ class ModelClient:
                     {"type": "text", "text": content or ""}
                 ]
                 if file_path:
-                    print("File path:", file_path)
                     try:
-                        print(f"Downloading file from history: {file_path}")
                         response = requests.get(file_path)
                         response.raise_for_status()
                         file_content = response.content
                         mime_type = self._get_file_type_from_url(file_path)
-                        print(f"File from history mime_type: {mime_type}")
 
                         if mime_type and mime_type.startswith("image/"):
                             base64_image = base64.b64encode(file_content).decode(
@@ -148,7 +143,7 @@ class ModelClient:
         if model not in MODELS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid model. Available models: {', '.join(MODELS.keys())}",
+                detail=f"Invalid model. Available models: {', '.join(MODELS)}",
             )
 
         with SessionLocal() as db:
@@ -198,7 +193,6 @@ class ModelClient:
                         f"\n\n--- PDF Content ---\n{pdf_text}"
                     )
 
-                    print("PDF text:", pdf_text)
                 except Exception as e:
                     print(f"Error processing PDF: {e}")
                     return {
@@ -219,7 +213,6 @@ class ModelClient:
                     }
             file.file.seek(0)
             file_url = await upload_file(file)
-            print("File URL:", file_url)
 
         processed_chat_history = await self._process_history(chat_history)
 
@@ -231,12 +224,11 @@ class ModelClient:
 
         response_content = ""
         try:
+            print("Model:", model)
             response = self.client.chat.completions.create(
-                model="openai:gpt-4o",
+                model=model,
                 messages=messages,
             )
-
-            print("Response:", response)
 
             response_content = str(response.choices[0].message.content)
         except Exception as e:
@@ -251,11 +243,18 @@ class ModelClient:
             user_id,
             message,
             "user",
+            model,
             file_url if file_url else None,
         )
         if response_content:
             background_tasks.add_task(
-                self.store_message, bot_id, user_id, response_content, "assistant", None
+                self.store_message,
+                bot_id,
+                user_id,
+                response_content,
+                "assistant",
+                model,
+                None,
             )
 
         return {
@@ -270,6 +269,7 @@ class ModelClient:
         user_id: str,
         message: str,
         sender: str,
+        model: str,
         file_path: Optional[str] = None,
     ) -> None:
         db: Session = SessionLocal()
@@ -281,7 +281,8 @@ class ModelClient:
                 print("Chat not found")
 
                 response = self.client.chat.completions.create(
-                    [
+                    model=model,
+                    messages=[
                         {
                             "role": "system",
                             "content": """ You are responsible for naming the chats between users and bots. You will be given first message of the chat and you need to come up with a name for the chat.
@@ -290,15 +291,12 @@ class ModelClient:
                             Your response should only contain the name of the chat without any additional text.""",
                         },
                         {"role": "user", "content": message},
-                    ]
+                    ],
                 )
-
-                print("Chat Name:", response.choices[0].message.content)
 
                 name = response.choices[0].message.content
 
                 chat = Chat(bot_id=bot_id, user_id=user_id, name=name)
-                print("Creating new chat with name:", name)
 
                 db.add(chat)
                 db.flush()
@@ -313,11 +311,9 @@ class ModelClient:
 
                 db.add(new_message)
                 db.commit()
-                print("Stored message")
 
         except Exception as e:
             db.rollback()
-            print("Error storing message", str(e))
 
         finally:
             db.close()

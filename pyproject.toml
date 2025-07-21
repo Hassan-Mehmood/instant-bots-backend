@@ -24,4 +24,5 @@ dependencies = [
     "stripe>=12.2.0",
     "svix>=1.65.0",
     "uvicorn>=0.34.2",
+    "vertexai>=1.71.1",
 ]

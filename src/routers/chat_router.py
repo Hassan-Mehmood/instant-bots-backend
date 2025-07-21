@@ -2,11 +2,12 @@ from fastapi import APIRouter, BackgroundTasks, Form, File, UploadFile
 from src.schemas.chat_schema import ResponseSchema
 from src.components.model import ModelClient
 from src.models.models import Chat
-
+from src.utils.credits import subtract_credits
 from src.db.database import SessionLocal
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
+from fastapi.responses import JSONResponse
 
 
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
@@ -30,8 +31,10 @@ async def root(
         return ResponseSchema(
             role="assistant", content="Please provide all required fields."
         )
-    if file:
-        print("File received")
+
+    with SessionLocal() as db:
+        if not await subtract_credits(user_id, db):
+            return ResponseSchema(role="assistant", content="Insufficient credits")
 
     model_client = ModelClient(model_name=model)
 
@@ -97,12 +100,21 @@ async def delete_chat_history(user_id: str, bot_id: str):
         chat = db.query(Chat).filter_by(bot_id=bot_id, user_id=user_id).first()
 
         if not chat:
-            return {"message": "No chat history found for this user and bot."}
+            return JSONResponse(
+                status_code=404,
+                content={"message": "No chat history found for this user and bot."},
+            )
 
         db.delete(chat)
         db.commit()
 
-        return {"message": "Chat history deleted successfully."}
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Chat history deleted successfully."},
+        )
     except Exception as e:
         print(f"Error deleting chat history: {e}")
-        return {"error": "An error occurred while deleting chat history."}
+        return JSONResponse(
+            status_code=500,
+            content={"error": "An error occurred while deleting chat history."},
+        )

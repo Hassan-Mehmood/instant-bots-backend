@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
+import aisuite as ai
+
 from src.db.database import SessionLocal
 from src.models.models import Bot, Chat, Message
 from src.routers.utils import check_uuid
@@ -41,9 +43,10 @@ class ModelClient:
     def __init__(self, model_name):
         self.load_api_keys()
         print("Loading model:", model_name)
-        self.model = init_chat_model(
-            model=model_name, model_provider=MODELS.get(model_name)
-        )
+        # self.model = init_chat_model(
+        #     model=model_name, model_provider=MODELS.get(model_name)
+        # )
+        self.client = ai.Client()
 
     def load_api_keys(self):
         os.getenv("OPENAI_API_KEY")
@@ -110,9 +113,14 @@ class ModelClient:
                     except Exception as e:
                         print(f"Error processing file from history: {e}")
 
-                processed_history.append(HumanMessage(content=message_content))  # type: ignore
+                processed_history.append(
+                    {
+                        "role": "user",
+                        "content": message_content,
+                    }
+                )
             elif role == "assistant":
-                processed_history.append(AIMessage(content=content))  # type: ignore
+                processed_history.append({"role": "assistant", "content": content})
 
         return processed_history
 
@@ -216,15 +224,21 @@ class ModelClient:
         processed_chat_history = await self._process_history(chat_history)
 
         messages = [
-            SystemMessage(str(prompt)),
+            {"role": "system", "content": str(prompt)},
             *processed_chat_history,
-            HumanMessage(content=user_message_content),  # type: ignore
+            {"role": "user", "content": user_message_content},  # type: ignore
         ]
 
         response_content = ""
         try:
-            response = await self.model.ainvoke(messages)
-            response_content = str(response.content)
+            response = self.client.chat.completions.create(
+                model="openai:gpt-4o",
+                messages=messages,
+            )
+
+            print("Response:", response)
+
+            response_content = str(response.choices[0].message.content)
         except Exception as e:
             print("Error generating chat completion: ", str(e))
             raise HTTPException(
@@ -266,21 +280,22 @@ class ModelClient:
             if not chat and sender == "user":
                 print("Chat not found")
 
-                response = self.model.invoke(
+                response = self.client.chat.completions.create(
                     [
-                        SystemMessage(
-                            """ You are responsible for naming the chats between users and bots. You will be given first message of the chat and you need to come up with a name for the chat.
+                        {
+                            "role": "system",
+                            "content": """ You are responsible for naming the chats between users and bots. You will be given first message of the chat and you need to come up with a name for the chat.
                             Choose an appropraite name for the chat based on the user's message. 
                             The name should be concise and relevant to the conversation.
-                            Your response should only contain the name of the chat without any additional text."""
-                        ),
-                        HumanMessage(content=message),
+                            Your response should only contain the name of the chat without any additional text.""",
+                        },
+                        {"role": "user", "content": message},
                     ]
                 )
 
-                print("Chat Name:", response.content)
+                print("Chat Name:", response.choices[0].message.content)
 
-                name = response.content
+                name = response.choices[0].message.content
 
                 chat = Chat(bot_id=bot_id, user_id=user_id, name=name)
                 print("Creating new chat with name:", name)

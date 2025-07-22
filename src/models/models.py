@@ -136,7 +136,9 @@ class Chat(Base):
     user: Mapped["User"] = relationship("User", back_populates="chats")
     bot_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bots.id"))
     bot: Mapped["Bot"] = relationship("Bot", back_populates="chats")
-    messages: Mapped[list["Message"]] = relationship("Message", back_populates="chat")
+    messages: Mapped[list["Message"]] = relationship(
+        "Message", back_populates="chat", cascade="all, delete-orphan"
+    )
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 

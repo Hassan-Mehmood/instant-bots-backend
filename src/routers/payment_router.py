@@ -17,12 +17,20 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 load_dotenv()
 
+AMOUNT_CREDITS = {
+    100: ("100_CREDITS_PRODUCT_ID"),
+    500: os.getenv("500_CREDITS_PRODUCT_ID"),
+    1000: os.getenv("1000_CREDITS_PRODUCT_ID"),
+}
+
+
 router = APIRouter(prefix="/stripe", tags=["payments"])
 
 
 class ChceckoutSessionData(BaseModel):
     user_id: str
     amount: float
+    price: float
 
 
 @router.post("/create-checkout-session")
@@ -31,6 +39,7 @@ async def create_checkout_session(
 ):
     user_id = data.user_id
     amount = data.amount
+    price = data.price
 
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
@@ -63,6 +72,7 @@ async def create_checkout_session(
         metadata={
             "user_id": user_id,
             "amount": str(amount),
+            "price": str(price),
         },
     )
     if not session:
@@ -94,6 +104,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
             user_id = session["metadata"]["user_id"]
             credits_to_add = float(session["metadata"]["amount"])
+            price = float(session["metadata"]["price"])
 
             print("Processing payment for user:", user_id, "Amount:", credits_to_add)
 
@@ -112,6 +123,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                     user_id=user.id,
                     type=TransactionType.PURCHASE,
                     amount=int(credits_to_add),
+                    price=price,
                 )
 
                 print(
@@ -123,8 +135,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 db.add(user)
                 db.add(transaction)
                 db.commit()
-                db.refresh(user)
-                db.refresh(transaction)
 
             except Exception as e:
                 print("Error processing payment: ", str(e))

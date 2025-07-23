@@ -119,6 +119,7 @@ class Transaction(Base):
     user: Mapped["User"] = relationship("User", back_populates="transactions")
     type = Column(Enum(TransactionType), nullable=False)
     amount = Column(Integer)
+    price = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 

@@ -24,18 +24,23 @@ class BotRequestSchema(BaseModel):
 
 
 class UpdateBotRequestSchema(BaseModel):
-    name: str | None = None
-    description: str | None = None
-    prompt: str | None = None
-    avatar: str | None = None
+    name: str = None
+    description: str = None
+    prompt: str = None
+    avatar: str = None
+
+
+class FavoriteBotRequestSchema(BaseModel):
+    userId: str
+    botId: str
+
+
+class BuyBotRequestSchema(BaseModel):
+    userId: str
+    botId: str
 
 
 class BotsResponseSchema(BaseModel):
     bots: List[BotSchema] = []
     status: int
     message: str
-
-
-class FavoriteBotRequestSchema(BaseModel):
-    botId: str
-    userId: str

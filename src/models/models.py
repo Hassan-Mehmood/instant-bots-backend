@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum,
     Table,
     Float,
+    Boolean,
 )
 from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,6 +22,13 @@ from src.db.database import Base
 
 users_bots = Table(
     "users_bots",
+    Base.metadata,
+    Column("user_id", String, ForeignKey("users.clerk_id"), primary_key=True),
+    Column("bot_id", UUID, ForeignKey("bots.id"), primary_key=True),
+)
+
+premium_bots_access = Table(
+    "premium_bots_access",
     Base.metadata,
     Column("user_id", String, ForeignKey("users.clerk_id"), primary_key=True),
     Column("bot_id", UUID, ForeignKey("bots.id"), primary_key=True),
@@ -69,6 +77,12 @@ class User(Base):
         "Bot", secondary="users_bots", back_populates="favorite_users"
     )
 
+    purchased_premium_bots: Mapped[list["Bot"]] = relationship(
+        "Bot",
+        secondary="premium_bots_access",
+        back_populates="premium_subscribers",
+    )
+
     chats: Mapped[list["Chat"]] = relationship("Chat", back_populates="user")
     transactions: Mapped[list["Transaction"]] = relationship(
         "Transaction", back_populates="user"
@@ -91,6 +105,7 @@ class Bot(Base):
     avatar = Column(String)
 
     visibility = Column(String, nullable=False, default="PRIVATE")
+    premium = Column(Boolean, nullable=False, default=False)
 
     user_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.clerk_id"), nullable=True
@@ -100,6 +115,12 @@ class Bot(Base):
     )
     favorite_users: Mapped[list["User"]] = relationship(
         "User", secondary="users_bots", back_populates="favorite_bots"
+    )
+
+    premium_subscribers: Mapped[list["User"]] = relationship(
+        "User",
+        secondary="premium_bots_access",
+        back_populates="purchased_premium_bots",
     )
 
     chats: Mapped[list["Chat"]] = relationship(

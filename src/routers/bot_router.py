@@ -2,15 +2,16 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi import Depends
 
-from src.models.models import Bot, User
+from src.models.models import Bot, User, Transaction
 
 from src.schemas.bot_schema import (
     BotRequestSchema,
     FavoriteBotRequestSchema,
     UpdateBotRequestSchema,
+    BuyBotRequestSchema,
 )
 
-from src.models.utils import BotVisibility
+from src.models.utils import BotVisibility, TransactionType
 from src.routers.utils import check_uuid
 from sqlalchemy.orm import Session
 from src.db.database import get_db
@@ -54,6 +55,7 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
                         "prompt": bot.prompt,
                         "avatar": bot.avatar,
                         "favorite": bot.id in favorite_bot_ids,
+                        "has_access": bot.premium and bot.user_id == user_id,
                         "visibility": bot.visibility,
                         "created_at": bot.created_at.isoformat(),
                         "updated_at": bot.updated_at.isoformat(),
@@ -438,3 +440,62 @@ async def get_favourite_bots(user_id: str, db: Session = Depends(get_db)):
         return JSONResponse(
             status_code=500, content={"message": "Error fetching favourite bots"}
         )
+
+
+@bot_router.post("/buy-bot")
+async def buy_bot(req: BuyBotRequestSchema, db: Session = Depends(get_db)):
+    try:
+        user_id = req.userId
+        bot_id = req.botId
+
+        if not check_uuid(bot_id):
+            raise HTTPException(status_code=400, detail="Please provide a valid bot id")
+
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Please provide a user id")
+
+        bot = db.query(Bot).filter_by(id=bot_id).first()
+
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+
+        if not bot.premium:
+            raise HTTPException(status_code=400, detail="Bot is not a premium bot")
+
+        user = db.query(User).filter_by(clerk_id=user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if user.credits < 100:
+            raise HTTPException(status_code=400, detail="Insufficient credits")
+
+        if bot in user.purchased_premium_bots:
+            raise HTTPException(
+                status_code=400, detail="Bot already purchased by the user"
+            )
+
+        user.credits -= 100
+        user.purchased_premium_bots.append(bot)
+
+        transaction = Transaction(
+            user_id=user.id,
+            type=TransactionType.SPEND,
+            amount=100,
+            price=2.5,
+        )
+
+        db.add(transaction)
+        db.commit()
+
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Bot purchased successfully"},
+        )
+
+    except HTTPException as http_execp:
+        raise http_execp
+
+    except Exception as e:
+        print("Exception in buy_bot: ", str(e))
+        raise HTTPException(status_code=500, detail="Error purchasing bot")

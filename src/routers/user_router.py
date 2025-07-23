@@ -169,6 +169,7 @@ async def transaction_history(user_id: str, db: Session = Depends(get_db)):
                     {
                         "id": str(transaction.id),
                         "amount": transaction.amount,
+                        "price": transaction.price,
                         "type": transaction.type.value,
                         "date": transaction.created_at.isoformat(),
                     }

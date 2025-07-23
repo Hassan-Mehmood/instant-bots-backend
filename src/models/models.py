@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Enum,
     Table,
+    Float,
 )
 from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -119,7 +120,7 @@ class Transaction(Base):
     user: Mapped["User"] = relationship("User", back_populates="transactions")
     type = Column(Enum(TransactionType), nullable=False)
     amount = Column(Integer)
-    price = Column(Integer, nullable=True)
+    price = Column(Float, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=datetime.now)
 

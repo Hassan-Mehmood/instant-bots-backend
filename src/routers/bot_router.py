@@ -55,7 +55,8 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
                         "prompt": bot.prompt,
                         "avatar": bot.avatar,
                         "favorite": bot.id in favorite_bot_ids,
-                        "has_access": bot.premium and bot.user_id == user_id,
+                        "has_access": (not bot.premium)
+                        or (bot.premium and bot.user_id == user_id),
                         "visibility": bot.visibility,
                         "created_at": bot.created_at.isoformat(),
                         "updated_at": bot.updated_at.isoformat(),

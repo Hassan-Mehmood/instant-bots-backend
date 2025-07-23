@@ -42,6 +42,7 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
             return JSONResponse(status_code=404, content={"message": "User not found"})
 
         favorite_bot_ids = {bot.id for bot in user.favorite_bots}
+        purchased_premium_bot_ids = {bot.id for bot in user.purchased_premium_bots}
 
         return JSONResponse(
             status_code=200,
@@ -56,7 +57,7 @@ async def get_bots(user_id: str, db: Session = Depends(get_db)):
                         "avatar": bot.avatar,
                         "favorite": bot.id in favorite_bot_ids,
                         "has_access": (not bot.premium)
-                        or (bot.premium and bot.user_id == user_id),
+                        or (bot.premium and bot.id in purchased_premium_bot_ids),
                         "visibility": bot.visibility,
                         "created_at": bot.created_at.isoformat(),
                         "updated_at": bot.updated_at.isoformat(),
